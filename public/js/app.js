@@ -172,6 +172,12 @@ window.addEventListener('hashchange', () => navigate());
 async function navigate() {
   const app = document.getElementById('app');
   if (!app.querySelector('.shell')) return;
+
+  // Clear any lingering overlays, modals, and menus from previous views
+  const overlays = document.getElementById('overlays');
+  if (overlays) overlays.replaceChildren();
+  document.querySelectorAll('.menu, .overlay, .modal-backdrop').forEach(m => m.remove());
+
   const hash = location.hash.replace(/^#\/?/, '');
   const [path, qs] = hash.split('?');
   const params = new URLSearchParams(qs || '');
