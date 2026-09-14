@@ -659,7 +659,7 @@ function wrapAuthError(e) {
   if (/invalid login credentials/i.test(msg)) return fail('That email and password don\'t match. Try again?');
   if (/already registered|already been registered/i.test(msg)) return fail('That email already has a world here. Sign in instead?');
   if (/password/i.test(msg) && /at least|weak/i.test(msg)) return fail('Pick a password of at least 6 characters.');
-  if (/rate limit/i.test(msg)) return fail('Too many tries — wait a minute and try again.');
+  if (/rate limit|over_email_send_rate_limit/i.test(msg)) return fail('Supabase email limit reached. In Supabase Dashboard -> Authentication -> Providers -> Email, disable "Confirm email" to sign up instantly.');
   if (/not confirmed|email_not_confirmed/i.test(msg)) return fail('Check your inbox to confirm your email first.');
   if (/unable to validate email/i.test(msg)) return fail('That email doesn\'t look right.');
   return fail(msg || 'That didn\'t work. Try again?');
