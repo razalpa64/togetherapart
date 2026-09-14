@@ -167,14 +167,26 @@ async function apiRoute(method, path, body) {
   /* ---- auth ---- */
   if (method === 'POST' && path === '/api/auth/signup') {
     const name = clean(B.name, 120) || 'Someone';
+    const email = clean(B.email, 200).toLowerCase();
+    const password = String(B.password || '');
     const { data, error } = await sb.auth.signUp({
-      email: clean(B.email, 200).toLowerCase(),
-      password: String(B.password || ''),
-      options: { data: { name } },
+      email, password, options: { data: { name } },
     });
-    if (error) throw wrapAuthError(error);
+    if (error) {
+      const { data: signData, error: signErr } = await sb.auth.signInWithPassword({ email, password }).catch(() => ({}));
+      if (!signErr && signData?.session) {
+        myUserId = signData.session.user.id; setToken('sb-session');
+        return { token: 'sb-session', user: { id: signData.session.user.id, name } };
+      }
+      throw wrapAuthError(error);
+    }
     if (data.session) { myUserId = data.session.user.id; setToken('sb-session'); return { token: 'sb-session', user: { id: data.session.user.id, name } }; }
-    throw fail('Almost there — check your inbox to confirm your email, then sign in.', 200);
+    const { data: signData } = await sb.auth.signInWithPassword({ email, password }).catch(() => ({}));
+    if (signData?.session) {
+      myUserId = signData.session.user.id; setToken('sb-session');
+      return { token: 'sb-session', user: { id: signData.session.user.id, name } };
+    }
+    throw fail('Almost there — check your inbox to confirm your email, or try signing in.', 200);
   }
   if (method === 'POST' && path === '/api/auth/login') {
     const { data, error } = await sb.auth.signInWithPassword({ email: clean(B.email, 200).toLowerCase(), password: String(B.password || '') });
