@@ -30,6 +30,13 @@ export async function readJson(req, limit = 256 * 1024) {
   catch { throw new Error('bad_json'); }
 }
 
+export function getIp(req) {
+  if (!req) return '127.0.0.1';
+  const fwd = req.headers ? (req.headers['x-forwarded-for'] || req.headers['x-real-ip']) : null;
+  if (fwd) return String(fwd).split(',')[0].trim();
+  return req.socket?.remoteAddress || '127.0.0.1';
+}
+
 // --- tiny in-memory rate limiter (per key) ---
 const buckets = new Map();
 setInterval(() => {
