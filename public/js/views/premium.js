@@ -1,49 +1,41 @@
-// PREMIUM — quiet, honest, never pushy. The free world stays whole.
-import { api } from '../api.js';
-import { store, refreshMe, isPremium, coupleIsDemo } from '../state.js';
-import { h, icon, toast } from '../ui.js';
+// PREMIUM — All features unlocked and free for everyone.
+import { h, icon } from '../ui.js';
 
 const FEATURES = [
-  ['🛋️', 'Your private couple room', true, 'The room, presence, Just Stay, chat and memories — always free, always whole.'],
-  ['🌧️', 'All the quiet places', true, 'Rain, balcony, beach, café and the cozy apartment in Just Stay.'],
-  ['🕯️', 'Cabin & rooftop scenes', false, 'Two hand-drawn premium environments — fireplace embers, rooftops under stars.'],
-  ['✉️', 'Sealed surprises', true, 'Letters, gifts and date invitations that open exactly when they should.'],
-  ['📸', 'Memory surprises', false, 'Wrap a collection of your moments as one gift that unlocks later.'],
-  ['wand', 'The date planner', true, 'Moods, minutes, gentle evenings — planned in seconds.'],
-  [' roomId', 'Expanded customization', false, 'More looks for your room and yourselves, as your world grows.'],
+  ['🛋️', 'Private Couple Room & Customizations', 'Your shared home, live room presence, custom furniture & themes — 100% Unlocked.'],
+  ['🌧️', 'All Ambient Locations & Environments', 'Rainy window, balcony, beach sunset, cozy café, cabin fireplace & star rooftop — 100% Unlocked.'],
+  ['🕯️', 'Hand-Crafted Cabin & Rooftop Scenes', 'Fireplace embers, starry rooftops, and custom seasonal atmospheres — 100% Unlocked.'],
+  ['✉️', 'Sealed Time Capsules & Memory Surprises', 'Wrap letters, photo collections, audio notes, and gifts to open anytime — 100% Unlocked.'],
+  ['🪄', 'AI & Smart Date Planner', 'Curated romantic date nights, custom activity generators & surprise plans — 100% Unlocked.'],
+  ['🎮', 'Games Arcade', 'Chess, Checkers, Word Guess Duel, Couple Trivia, Tic-Tac-Toe, Connect Four & Memory — 100% Unlocked.'],
 ];
 
 export function render(root) {
-  const premium = isPremium();
-  const rows = FEATURES.map(([ic, name, free, desc]) => h('div', { class: 'set-row' },
-    h('div', { class: 'l', style: { display: 'flex', gap: '12px', alignItems: 'flex-start' } },
-      h('span', { style: { fontSize: '1.15rem', minWidth: '26px' } }, ic.startsWith('wand') || ic.includes('roomId') ? (ic.includes('wand') ? '🪄' : '🛋️') : ic),
-      h('div', {}, h('div', { class: 't' }, name), h('div', { class: 'd' }, desc))),
-    h('span', { class: 'chip' + (free ? '' : ' on'), style: { cursor: 'default' } }, free ? 'Free' : 'Premium')));
-
-  const toggle = h('button', { class: 'btn ' + (premium ? 'btn-ghost' : 'btn-primary'), onclick: async () => {
-    await api('PATCH', '/api/couple', { plan: premium ? 'free' : 'premium' });
-    await refreshMe();
-    toast(premium ? 'Back to free — still everything that matters.' : 'Premium on. The cabin is warm.');
-    location.hash = '#/settings'; setTimeout(() => location.hash = '#/premium', 10);
-  } }, premium ? 'Turn premium off (demo)' : 'Try premium — free in this build');
+  const rows = FEATURES.map(([ic, name, desc]) => h('div', { class: 'set-row' },
+    h('div', { class: 'l', style: { display: 'flex', gap: '14px', alignItems: 'flex-start' } },
+      h('span', { style: { fontSize: '1.4rem', minWidth: '32px' } }, ic),
+      h('div', {}, h('div', { class: 't', style: { fontWeight: '600', fontSize: '1rem' } }, name), h('div', { class: 'd', style: { marginTop: '2px' } }, desc))),
+    h('span', { class: 'chip on', style: { cursor: 'default', background: 'var(--gold-soft)', color: 'var(--gold-dark, #b8860b)', fontWeight: '600' } }, 'Unlocked Free')));
 
   root.append(h('div', {},
     h('div', { class: 'page-head' },
       h('div', { class: 't' },
-        h('span', { class: 'eyebrow' }, 'Keeping the lights on'),
-        h('h1', { class: 'display-2' }, 'Premium'),
-        h('p', {}, 'The free world is the whole product. Premium just adds rooms to it.'))),
-    h('div', { class: 'card card-pad', style: { maxWidth: '640px' } },
-      h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '6px' } },
-        h('span', { class: 'tag', style: { color: premium ? 'var(--gold)' : 'var(--ink-3)' } }, premium ? 'your plan' : 'current plan'),
-        h('span', { class: 'serif', style: { fontSize: '1.5rem' } }, premium ? 'Premium' : 'Free')),
+        h('span', { class: 'eyebrow', style: { color: 'var(--gold)' } }, '✨ Everything Unlocked'),
+        h('h1', { class: 'display-2' }, 'All Premium Perks Free'),
+        h('p', {}, 'Every room, game, atmosphere, memory gift, and date planner feature is completely free for you and your partner.'))),
+    h('div', { class: 'card card-pad', style: { maxWidth: '680px' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' } },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
+          h('span', { style: { fontSize: '1.8rem' } }, '👑'),
+          h('div', {},
+            h('span', { class: 'serif', style: { fontSize: '1.4rem', fontWeight: 'bold' } }, 'Full VIP Unlocked'),
+            h('p', { class: 'small muted', style: { margin: 0 } }, 'No paywalls, no subscriptions — just for the two of you.'))),
+        h('span', { class: 'tag', style: { background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: '0.85rem', padding: '6px 12px', borderRadius: '12px' } }, 'Forever Free')),
       h('div', { class: 'hr' }),
       ...rows,
       h('div', { class: 'hr' }),
-      h('p', { class: 'small muted', style: { marginBottom: '14px' } },
-        'In production this is a subscription (a couple, one plan — one price for two). In this build, it\'s a switch so you can see everything.'),
-      coupleIsDemo() ? h('p', { class: 'small faint' }, 'The demo world ships with premium on.') : '',
-      toggle)));
+      h('div', { style: { textAlign: 'center', padding: '10px 0' } },
+        h('p', { class: 'small muted', style: { marginBottom: '14px' } }, 'Distance is hard enough. Enjoy every single feature of your shared space together!'),
+        h('a', { class: 'btn btn-primary', href: '#/games' }, h('span', { html: icon('gamepad', 18) }), 'Explore Games Arcade')))));
   return {};
 }

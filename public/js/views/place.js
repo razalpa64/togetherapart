@@ -41,13 +41,15 @@ export function render(root, params) {
 
   const moodPanel = h('div', { class: 'card card-pad', id: 'mood-panel' });
   const cdPanel = h('div', { class: 'card card-pad', id: 'cd-panel' });
+  const notesPanel = h('div', { class: 'card card-pad', id: 'notes-panel', style: { marginTop: '26px' } });
   const soloBanner = h('div', {});
 
   roomWrap.append(hud);
   const page = h('section', { style: { padding: 'clamp(18px, 3.4vw, 36px)', maxWidth: '1160px', margin: '0 auto' } },
     head, roomWrap, foot,
     soloBanner,
-    h('div', { class: 'two-col', style: { marginTop: '26px' } }, moodPanel, cdPanel));
+    h('div', { class: 'two-col', style: { marginTop: '26px' } }, moodPanel, cdPanel),
+    notesPanel);
   root.append(page);
 
   initStayInvites();
@@ -336,6 +338,62 @@ export function render(root, params) {
       } }] });
   }
 
+  /* ---------- Love Notes Wall ---------- */
+  function drawNotesWall() {
+    let notes = storage.get('ta_love_notes') || [
+      { id: '1', text: 'Thinking of you today 💛', color: '#fef08a', by: 'Partner' },
+      { id: '2', text: 'Can\'t wait for date night! ✨', color: '#fed7aa', by: 'You' },
+      { id: '3', text: 'Good morning my love 🌅', color: '#bbf7d0', by: 'Partner' }
+    ];
+
+    const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px', marginTop: '16px' } },
+      notes.map((n, idx) => h('div', {
+        style: {
+          background: n.color || '#fef08a', color: '#334155', padding: '16px', borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.06)', position: 'relative', transform: `rotate(${idx % 2 === 0 ? -1.5 : 1.5}deg)`,
+          fontFamily: 'var(--font-serif)', fontSize: '1.05rem', lineHeight: 1.4
+        }
+      },
+        h('button', {
+          style: { position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6, fontSize: '0.9rem' },
+          onclick: () => {
+            notes = notes.filter(x => x.id !== n.id);
+            storage.set('ta_love_notes', notes);
+            drawNotesWall();
+          }
+        }, '✕'),
+        h('div', { style: { marginBottom: '10px' } }, n.text),
+        h('div', { class: 'small faint', style: { textAlign: 'right', fontSize: '0.75rem', fontWeight: 'bold' } }, '— ' + n.by)
+      ))
+    );
+
+    const addBtn = h('button', {
+      class: 'btn btn-primary btn-sm',
+      onclick: () => {
+        const txt = prompt('Write a little love note for your partner:');
+        if (!txt || !txt.trim()) return;
+        const colors = ['#fef08a', '#fed7aa', '#bbf7d0', '#e9d5ff', '#fbcfe8'];
+        const newNote = { id: String(Date.now()), text: txt.trim(), color: colors[Math.floor(Math.random() * colors.length)], by: store.me?.user?.name || 'You' };
+        notes.unshift(newNote);
+        storage.set('ta_love_notes', notes);
+        drawNotesWall();
+        send({ t: 'float', emoji: '💌' });
+        toast('Love note pinned to your place wall! 💌');
+      }
+    }, '➕ Leave a note');
+
+    notesPanel.replaceChildren(
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
+        h('div', {},
+          h('span', { class: 'eyebrow' }, 'Sticky Notes Board'),
+          h('h2', { class: 'h2' }, 'Love Notes Wall'),
+          h('p', { class: 'muted small' }, 'Little notes pinned to your shared home.')),
+        addBtn
+      ),
+      grid
+    );
+  }
+
   /* ---------- ws wiring ---------- */
   offs.push(on('ws:room:patch', ({ patch }) => { Object.assign(store.room, patch); applyRoom(); if (patch.music) updateMusicChip(); }));
   offs.push(on('ws:avatar:move', ({ userId, spot }) => {
@@ -376,6 +434,7 @@ export function render(root, params) {
     renderSolo();
     renderMoodPanel();
     renderCdPanel();
+    drawNotesWall();
     setFrames();
   })();
 

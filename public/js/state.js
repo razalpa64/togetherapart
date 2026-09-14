@@ -32,4 +32,5 @@ export function applyTheme() {
 export const amDemo = () => !!store.me?.demo?.isDemoUser;
 export const coupleIsDemo = () => !!store.me?.demo?.coupleIsDemo;
 export const partner = () => store.me?.partner || null;
-export const isPremium = () => store.me?.couple?.plan === 'premium';
+export const isPremium = () => true; // 100% of premium features are free for all couples
+

@@ -10,6 +10,7 @@ import { stop, playing, getVolume, setVolume } from './audio.js';
 const NAV = [
   { id: 'place', label: 'Our Place', icon: 'home' },
   { id: 'date', label: 'Date Night', icon: 'sparkle' },
+  { id: 'games', label: 'Games Arcade', icon: 'gamepad' },
   { id: 'activities', label: 'Activities', icon: 'grid' },
   { id: 'memories', label: 'Memories', icon: 'image' },
   { id: 'chat', label: 'Chat', icon: 'chat' },
@@ -19,6 +20,7 @@ const NAV2 = [
   { id: 'places', label: 'Places', icon: 'pin' },
   { id: 'songs', label: 'Our Songs', icon: 'music' },
   { id: 'surprises', label: 'Surprises', icon: 'gift' },
+  { id: 'bouquet', label: 'Digital Bouquet', icon: 'heart' },
   { id: 'booth', label: 'Photo Booth', icon: 'camera' },
   { id: 'premium', label: 'Premium', icon: 'crown' },
   { id: 'settings', label: 'Settings', icon: 'gear' },
@@ -43,7 +45,11 @@ async function boot() {
     await initBackend();
     if (!getToken()) { return renderAuth(app); }
     try { await refreshMe(); }
-    catch (e) { toast(e.message || 'We couldn\'t open your world.'); return renderAuth(app); }
+    catch (e) {
+      clearToken();
+      toast(e.message || 'Session expired. Please sign in again.');
+      return renderAuth(app);
+    }
     if (!store.me) return renderAuth(app);
     applyTheme();
     if (window.__TA_RECOVERY__) { // landed from a password-reset email (supabase mode)
@@ -58,8 +64,10 @@ async function boot() {
     app.replaceChildren();
     app.append(h('div', { class: 'boot' },
       h('h1', { class: 'display-2' }, 'Something interrupted us.'),
-      h('p', { class: 'muted small', style: { marginTop: '8px' } }, 'The page hit an unexpected snag. Trying again usually fixes it.'),
-      h('button', { class: 'btn btn-primary', style: { marginTop: '14px' }, onclick: () => location.reload() }, 'Try again')));
+      h('p', { class: 'muted small', style: { marginTop: '8px' } }, 'The page hit an unexpected snag. Trying again or resetting your session fixes it.'),
+      h('div', { style: { display: 'flex', gap: '10px', marginTop: '14px', justifyContent: 'center' } },
+        h('button', { class: 'btn btn-primary', onclick: () => location.reload() }, 'Try again'),
+        h('button', { class: 'btn btn-ghost', onclick: () => { clearToken(); location.hash = ''; location.reload(); } }, 'Reset & Sign In'))));
   }
 }
 
@@ -144,7 +152,7 @@ function demoBar() {
 }
 
 /* ---------------- routing ---------------- */
-const VIEWS = ['place', 'date', 'activities', 'memories', 'chat', 'story', 'places', 'songs', 'surprises', 'booth', 'settings', 'premium'];
+const VIEWS = ['place', 'date', 'games', 'activities', 'memories', 'chat', 'story', 'places', 'songs', 'surprises', 'bouquet', 'booth', 'settings', 'premium'];
 window.addEventListener('hashchange', () => navigate());
 async function navigate() {
   const app = document.getElementById('app');

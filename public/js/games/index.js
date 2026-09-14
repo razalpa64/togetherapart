@@ -34,17 +34,25 @@ export async function renderGame(container, game, onExit) {
     if (!session) return;
     const st = session.state;
     const myTurn = session.turn === meId;
-    const title = ({ ttt: 'Tic Tac Toe', c4: 'Connect Four', memory: 'Memory Match', wyr: 'Would You Rather', thisthat: 'This or That', draw: 'The Drawing Game' })[session.game] || session.game;
+    const titles = {
+      ttt: 'Tic Tac Toe', c4: 'Connect Four', memory: 'Memory Match', wyr: 'Would You Rather',
+      thisthat: 'This or That', draw: 'The Drawing Game', chess: 'Chess Duel', checkers: 'Checkers',
+      wordle: 'Word Guess Duel', trivia: 'Couple\'s Trivia', rps: 'Rock Paper Scissors Spock'
+    };
+    const title = titles[session.game] || session.game;
     head.replaceChildren(
       h('div', {},
         h('h2', { class: 'h2' }, title),
         h('p', { class: 'small muted', style: { marginTop: '2px' } },
-          session.game === 'draw' || session.game === 'wyr' || session.game === 'thisthat' ? 'no turns — just the two of you' : myTurn ? 'your move' : `${themName}'s move…`)),
+          ['draw','wyr','thisthat','wordle','trivia','rps'].includes(session.game) ? 'shared deck / simultaneous play' : myTurn ? 'your move' : `${themName}'s move…`)),
       h('div', { style: { marginLeft: 'auto', display: 'flex', gap: '8px' } },
         h('button', { class: 'btn btn-ghost btn-sm', onclick: async () => { const d = await api('POST', `/api/games/${session.id}/reset`); session = d.session; draw(); } }, h('span', { html: icon('refresh', 14) }), 'New round'),
         onExit ? h('button', { class: 'btn btn-ghost btn-sm', onclick: onExit }, 'Back') : ''));
 
-    const renderers = { ttt: drawTTT, c4: drawC4, memory: drawMemory, wyr: drawDuel, thisthat: drawDuel, draw: drawDraw };
+    const renderers = {
+      ttt: drawTTT, c4: drawC4, memory: drawMemory, wyr: drawDuel, thisthat: drawDuel, draw: drawDraw,
+      chess: drawChess, checkers: drawCheckers, wordle: drawWordle, trivia: drawTrivia, rps: drawRPS
+    };
     (renderers[session.game] || (() => {}))(st);
   }
 
@@ -195,6 +203,158 @@ export async function renderGame(container, game, onExit) {
     canvas.addEventListener('touchstart', down, { passive: false }); canvas.addEventListener('touchmove', mv, { passive: false }); canvas.addEventListener('touchend', up);
 
     stage.replaceChildren(prompt, wrap, tools);
+  }
+
+  /* ---------- chess ---------- */
+  let selectedSquare = null;
+  function drawChess(st) {
+    const SYMBOLS = { R: '♖', N: '♘', B: '♗', Q: '♕', K: '♔', P: '♙', r: '♜', n: '♞', b: '♝', q: '♛', k: '♚', p: '♟' };
+    const board = h('div', { class: 'chess-board', style: { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '2px', width: '320px', height: '320px', background: 'var(--border)', border: '2px solid var(--border)', borderRadius: '8px', overflow: 'hidden' } });
+    st.board.forEach((piece, i) => {
+      const row = Math.floor(i / 8), col = i % 8;
+      const isDark = (row + col) % 2 === 1;
+      const isSelected = selectedSquare === i;
+      const btn = h('button', {
+        class: 'chess-cell',
+        style: {
+          background: isSelected ? 'var(--gold-soft, #fef3c7)' : isDark ? '#b58863' : '#f0d9b5',
+          fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: session.turn === meId ? 'pointer' : 'default', border: 'none'
+        },
+        onclick: () => {
+          if (session.turn !== meId) return;
+          if (selectedSquare === null) {
+            if (piece) { selectedSquare = i; draw(); }
+          } else {
+            if (selectedSquare === i) { selectedSquare = null; draw(); }
+            else {
+              const from = selectedSquare;
+              selectedSquare = null;
+              move({ from, to: i });
+            }
+          }
+        }
+      }, piece ? (SYMBOLS[piece] || piece) : '');
+      board.append(btn);
+    });
+    stage.replaceChildren(board, h('p', { class: 'small muted' }, selectedSquare !== null ? 'Click a target square to move piece' : 'Click a piece to select it'));
+  }
+
+  /* ---------- checkers ---------- */
+  let selectedChecker = null;
+  function drawCheckers(st) {
+    const board = h('div', { class: 'checkers-board', style: { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '2px', width: '320px', height: '320px', background: 'var(--border)', border: '2px solid var(--border)', borderRadius: '8px', overflow: 'hidden' } });
+    st.board.forEach((piece, i) => {
+      const row = Math.floor(i / 8), col = i % 8;
+      const isDark = (row + col) % 2 === 1;
+      const isSelected = selectedChecker === i;
+      const sym = piece === 'r' ? '🔴' : piece === 'rk' ? '👑🔴' : piece === 'b' ? '⚪' : piece === 'bk' ? '👑⚪' : '';
+      const btn = h('button', {
+        class: 'checker-cell',
+        style: {
+          background: isSelected ? 'var(--gold-soft, #fef3c7)' : isDark ? '#769656' : '#eeeed2',
+          fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: session.turn === meId ? 'pointer' : 'default', border: 'none'
+        },
+        onclick: () => {
+          if (session.turn !== meId) return;
+          if (selectedChecker === null) {
+            if (piece) { selectedChecker = i; draw(); }
+          } else {
+            if (selectedChecker === i) { selectedChecker = null; draw(); }
+            else {
+              const from = selectedChecker;
+              selectedChecker = null;
+              move({ from, to: i });
+            }
+          }
+        }
+      }, sym);
+      board.append(btn);
+    });
+    stage.replaceChildren(board, h('p', { class: 'small muted' }, selectedChecker !== null ? 'Click target square to move' : 'Click a piece to select it'));
+  }
+
+  /* ---------- wordle duel ---------- */
+  function drawWordle(st) {
+    const guessesBox = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', maxWidth: '340px' } });
+    st.guesses.forEach(g => {
+      const row = h('div', { style: { display: 'flex', gap: '4px', justifyContent: 'center' } });
+      const sec = st.secret.split('');
+      g.word.split('').forEach((ch, idx) => {
+        let bg = 'var(--bg-3)';
+        if (ch === sec[idx]) bg = '#38a169';
+        else if (sec.includes(ch)) bg = '#d69e2e';
+        else bg = '#718096';
+        row.append(h('div', { style: { width: '38px', height: '38px', background: bg, color: '#fff', fontWeight: 'bold', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' } }, ch));
+      });
+      guessesBox.append(row);
+    });
+
+    const inp = h('input', { class: 'input', placeholder: '6-LETTER WORD', maxlength: '6', style: { width: '200px', textTransform: 'uppercase', textAlign: 'center', letterSpacing: '0.1em', fontSize: '1.2rem' } });
+    const sub = h('button', { class: 'btn btn-primary', onclick: () => { if (inp.value.length === 6) move({ guess: inp.value }); } }, 'Guess');
+
+    stage.replaceChildren(guessesBox,
+      st.solved ? endNote('🎉 Secret word guessed! Word: ' + st.secret) :
+      st.guesses.length >= st.maxGuesses ? endNote('Wordle complete! The word was: ' + st.secret) :
+      h('div', { style: { display: 'flex', gap: '8px', marginTop: '10px' } }, inp, sub));
+  }
+
+  /* ---------- couple trivia ---------- */
+  function drawTrivia(st) {
+    const q = st.qs[st.idx];
+    if (!q) { stage.replaceChildren(endNote('Quiz finished! Great job!')); return; }
+    const answered = st.answers?.[meId] !== undefined;
+    const box = h('div', { class: 'card card-pad', style: { maxWidth: '440px', textAlign: 'center' } },
+      h('span', { class: 'tag', style: { marginBottom: '10px', display: 'inline-block' } }, `Question ${st.idx + 1} of ${st.qs.length}`),
+      h('h3', { class: 'h3', style: { marginBottom: '16px' } }, q.q),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } }, q.options.map((opt, i) =>
+        h('button', {
+          class: 'btn ' + (st.answers?.[meId] === i ? 'btn-primary' : 'btn-ghost'),
+          disabled: answered,
+          onclick: () => move({ move: i })
+        }, opt)
+      ))
+    );
+    if (st.revealed) {
+      box.append(h('button', { class: 'btn btn-primary', style: { marginTop: '14px' }, onclick: () => move({ action: 'next' }) }, 'Next Question'));
+    } else if (answered) {
+      box.append(h('p', { class: 'small muted', style: { marginTop: '12px' } }, 'Waiting for partner...'));
+    }
+    stage.replaceChildren(box);
+  }
+
+  /* ---------- rock paper scissors spock ---------- */
+  function drawRPS(st) {
+    const opts = [
+      { id: 'rock', emoji: '✊', label: 'Rock' },
+      { id: 'paper', emoji: '✋', label: 'Paper' },
+      { id: 'scissors', emoji: '✌️', label: 'Scissors' },
+      { id: 'spock', emoji: '🖖', label: 'Spock' }
+    ];
+    const myChoice = st.choices?.[meId];
+    const box = h('div', { class: 'card card-pad', style: { textAlign: 'center', maxWidth: '400px' } },
+      h('h3', { class: 'h3', style: { marginBottom: '14px' } }, `Round ${st.round}`),
+      h('div', { style: { display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' } }, opts.map(o =>
+        h('button', {
+          class: 'btn ' + (myChoice === o.id ? 'btn-primary' : 'btn-subtle'),
+          style: { fontSize: '1.2rem', padding: '12px 18px' },
+          disabled: !!myChoice,
+          onclick: () => move({ move: o.id })
+        }, o.emoji + ' ' + o.label)
+      ))
+    );
+    if (st.revealed) {
+      box.append(
+        h('div', { class: 'soft-card', style: { marginTop: '14px' } },
+          h('p', { class: 'serif', style: { fontSize: '1.2rem' } }, 'Choices revealed!'),
+          h('button', { class: 'btn btn-primary btn-sm', style: { marginTop: '10px' }, onclick: () => move({ action: 'next' }) }, 'Next Round')
+        )
+      );
+    } else if (myChoice) {
+      box.append(h('p', { class: 'small muted', style: { marginTop: '12px' } }, 'Choice locked in! Waiting for partner...'));
+    }
+    stage.replaceChildren(box);
   }
 
   function endNote(text) {

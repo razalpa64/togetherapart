@@ -120,12 +120,15 @@ export function render(root) {
         { emoji: '🧸', name: 'Childhood memories', desc: 'who you were before', run: runDeck('childhood', 'Childhood memories') },
       ] },
       { emoji: '🎮', title: 'Play', blurb: 'tiny games, real rivalry', items: [
+        { emoji: '♟️', name: 'Chess', desc: 'the timeless strategy duel', run: runGame('chess'), needsPartner: true },
+        { emoji: '🎯', name: 'Checkers', desc: 'jump, king & conquer', run: runGame('checkers'), needsPartner: true },
+        { emoji: '🔤', name: 'Word Guess Duel', desc: '6-letter secret word duel', run: runGame('wordle'), needsPartner: true },
+        { emoji: '💡', name: 'Couple\'s Trivia', desc: 'how well do you know each other?', run: runGame('trivia'), needsPartner: true },
+        { emoji: '✌️', name: 'Rock Paper Scissors Spock', desc: 'quick reaction showdown', run: runGame('rps'), needsPartner: true },
         { emoji: '⭕', name: 'Tic Tac Toe', desc: 'best of many', run: runGame('ttt'), needsPartner: true },
         { emoji: '🔴', name: 'Connect Four', desc: 'it gets serious', run: runGame('c4'), needsPartner: true },
         { emoji: '🧠', name: 'Memory Match', desc: 'pairs & smugness', run: runGame('memory'), needsPartner: true },
         { emoji: '✏️', name: 'Drawing Game', desc: '60 seconds, no talent', run: runGame('draw'), needsPartner: true },
-        { emoji: '♟️', name: 'Chess', locked: true, run: () => {} },
-        { emoji: '🎯', name: 'Checkers', locked: true, run: () => {} },
       ] },
       { emoji: '🎨', title: 'Create', blurb: 'make things that are yours', items: [
         { emoji: '🖌️', name: 'Shared drawing', desc: 'one canvas, two hands', run: runGame('draw'), needsPartner: true },

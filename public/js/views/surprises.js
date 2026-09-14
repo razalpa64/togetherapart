@@ -29,6 +29,7 @@ export function render(root) {
         h('h1', { class: 'display-2' }, 'Surprises'),
         h('p', {}, 'Prepare something they can\'t see yet. Not even a peek.')),
       h('div', { class: 'actions' },
+        h('a', { class: 'btn btn-ghost', href: '#/bouquet' }, '💐 Digital Bouquet'),
         partner() ? h('button', { class: 'btn btn-primary', onclick: create }, h('span', { html: icon('plus', 16) }), 'Prepare a surprise') : '')),
     list));
 

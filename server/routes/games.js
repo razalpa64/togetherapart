@@ -23,34 +23,62 @@ function newSession(coupleId, game, users) {
     state = { qs, idx: 0, answers: {}, revealed: false, score: { both: 0, total: 0 } };
   }
   if (game === 'draw') state = { prompt: shuffle(decks.draw)[0], strokes: [], round: 1 };
+
+  if (game === 'chess') {
+    const board = [
+      'r','n','b','q','k','b','n','r',
+      'p','p','p','p','p','p','p','p',
+      null,null,null,null,null,null,null,null,
+      null,null,null,null,null,null,null,null,
+      null,null,null,null,null,null,null,null,
+      null,null,null,null,null,null,null,null,
+      'P','P','P','P','P','P','P','P',
+      'R','N','B','Q','K','B','N','R'
+    ];
+    state = { board, white: a, black: b, captured: { W: [], B: [] } };
+  }
+
+  if (game === 'checkers') {
+    const board = Array(64).fill(null);
+    [1,3,5,7,8,10,12,14,17,19,21,23].forEach(i => board[i] = 'b');
+    [40,42,44,46,49,51,53,55,56,58,60,62].forEach(i => board[i] = 'r');
+    state = { board, red: a, black: b };
+  }
+
+  if (game === 'wordle') {
+    const WORDS = ['COUPLE', 'ALWAYS', 'WARMTH', 'FLAME', 'LOVING', 'FOREVER', 'UNITED', 'HEARTS', 'SHARED'];
+    const secret = shuffle(WORDS)[0];
+    state = { secret, guesses: [], maxGuesses: 6, solved: false };
+  }
+
+  if (game === 'trivia') {
+    const TRIVIA_BANK = [
+      { q: "Where was your very first date or meeting?", options: ["Café / Coffee", "Park / Walk", "Movie / Dinner", "Online / Video Call"] },
+      { q: "What's the best time of day for you two to talk?", options: ["Morning Coffee", "Afternoon Break", "Late Night", "Whenever free!"] },
+      { q: "Who usually calls or texts first in the morning?", options: ["Partner A", "Partner B", "Both equally", "Depends on alarm!"] },
+      { q: "What is your dream vacation destination together?", options: ["Cozy Alpine Cabin", "Tropical Beach Resort", "Historic City Tour", "Quiet Countryside"] },
+      { q: "What is your favorite activity on date night?", options: ["Cooking & Movie", "Gaming together", "Stargazing & Long talks", "Music & Dancing"] }
+    ];
+    state = { qs: shuffle(TRIVIA_BANK), idx: 0, answers: {}, scores: { [a]: 0, [b]: 0 } };
+  }
+
+  if (game === 'rps') {
+    state = { choices: {}, round: 1, scores: { [a]: 0, [b]: 0 } };
+  }
+
   const s = {
     id: id('g'), coupleId, game, state,
-    turn: game === 'draw' || game === 'wyr' || game === 'thisthat' ? null : a,
+    turn: ['draw','wyr','thisthat','wordle','trivia','rps'].includes(game) ? null : a,
     status: 'active', winner: null, updatedAt: now(), createdAt: now(),
   };
   return s;
 }
 
-function checkTTT(b) {
-  const L = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  for (const [x, y, z] of L) if (b[x] && b[x] === b[y] && b[y] === b[z]) return b[x];
-  return b.every(Boolean) ? 'draw' : null;
-}
-function checkC4(b) {
-  const at = (r, c) => (r >= 0 && r < 6 && c >= 0 && c < 7 ? b[r * 7 + c] : null);
-  for (let r = 0; r < 6; r++) for (let c = 0; c < 7; c++) {
-    const v = at(r, c); if (!v) continue;
-    for (const [dr, dc] of [[0,1],[1,0],[1,1],[1,-1]]) {
-      if (at(r+dr,c+dc)===v && at(r+2*dr,c+2*dc)===v && at(r+3*dr,c+3*dc)===v) return v;
-    }
-  }
-  return b.every(Boolean) ? 'draw' : null;
-}
-
 export const routes = [
   ['POST', /^\/api\/games\/start$/, async ({ res, body, user, ctx }) => {
     if (!ctx.coupleId) return fail(res, 409, 'Create your world first.');
-    const game = ['ttt', 'c4', 'memory', 'wyr', 'thisthat', 'draw'].includes(body.game) ? body.game : null;
+    const validGames = ['ttt', 'c4', 'memory', 'wyr', 'thisthat', 'draw', 'chess', 'checkers', 'wordle', 'trivia', 'rps'];
+    const game = validGames.includes(body.game) ? body.game : null;
     if (!game) return fail(res, 400, 'Unknown game.');
     if (!ctx.partner) return fail(res, 409, `You'll need ${ctx.couple ? 'your partner' : 'someone'} in the world first — invite them from Our Place.`);
     const users = [user.id, ctx.partner.userId];
@@ -160,10 +188,88 @@ export const routes = [
       else if (body.action === 'next') { st.strokes = []; st.prompt = shuffle(decks.draw.filter(p => p !== st.prompt))[0]; st.round++; }
     }
 
+    else if (s.game === 'chess') {
+      if (s.turn !== me) return fail(res, 400, 'Their turn first.');
+      const { from, to } = body;
+      if (from === undefined || to === undefined || !st.board[from]) return fail(res, 400, 'Select a piece to move.');
+      const dest = st.board[to];
+      if (dest) {
+        const side = dest === dest.toUpperCase() ? 'W' : 'B';
+        st.captured[side] = st.captured[side] || [];
+        st.captured[side].push(dest);
+      }
+      st.board[to] = st.board[from];
+      st.board[from] = null;
+      s.turn = other;
+    }
+
+    else if (s.game === 'checkers') {
+      if (s.turn !== me) return fail(res, 400, 'Their turn first.');
+      const { from, to } = body;
+      if (from === undefined || to === undefined || !st.board[from]) return fail(res, 400, 'Select a piece.');
+      const piece = st.board[from];
+      st.board[to] = piece;
+      st.board[from] = null;
+      // jump removal
+      const diff = Math.abs(to - from);
+      if (diff === 14 || diff === 18) {
+        const mid = (from + to) / 2;
+        st.board[mid] = null;
+      }
+      // kinging
+      if (piece === 'r' && to <= 7) st.board[to] = 'rk';
+      if (piece === 'b' && to >= 56) st.board[to] = 'bk';
+      s.turn = other;
+    }
+
+    else if (s.game === 'wordle') {
+      const g = clean(body.guess || '', 8).toUpperCase();
+      if (!g || g.length !== 6) return fail(res, 400, 'Guess a 6-letter word.');
+      st.guesses.push({ word: g, by: me });
+      if (g === st.secret) { st.solved = true; s.status = 'done'; s.winner = me; }
+      else if (st.guesses.length >= st.maxGuesses) { s.status = 'done'; s.winner = 'nobody'; }
+    }
+
+    else if (s.game === 'trivia') {
+      if (body.action === 'next') {
+        if (st.idx < st.qs.length - 1) { st.idx++; st.answers = {}; st.revealed = false; }
+        else { s.status = 'done'; }
+      } else {
+        const choice = Number(body.move);
+        st.answers[me] = choice;
+        const keys = Object.keys(st.answers);
+        if (keys.length >= 2) {
+          st.revealed = true;
+          // check if both chose correctly or matched
+          keys.forEach(k => { st.scores[k] = (st.scores[k] || 0) + 1; });
+        }
+      }
+    }
+
+    else if (s.game === 'rps') {
+      const move = clean(body.move, 12);
+      if (!['rock','paper','scissors','spock'].includes(move)) return fail(res, 400, 'Invalid move.');
+      st.choices[me] = move;
+      const keys = Object.keys(st.choices);
+      if (keys.length >= 2) {
+        st.revealed = true;
+        const [p1, p2] = keys;
+        const m1 = st.choices[p1], m2 = st.choices[p2];
+        if (m1 !== m2) {
+          const wins = { rock: ['scissors'], paper: ['rock'], scissors: ['paper'], spock: ['rock','scissors'] };
+          if (wins[m1]?.includes(m2)) st.scores[p1] = (st.scores[p1] || 0) + 1;
+          else st.scores[p2] = (st.scores[p2] || 0) + 1;
+        }
+      }
+      if (body.action === 'next') {
+        st.choices = {}; st.revealed = false; st.round++;
+      }
+    }
+
     s.updatedAt = now();
     save();
     ctx.rt.broadcastCouple(ctx.coupleId, { t: 'game:state', session: s, by: me });
-    ctx.rt.touch(me, { activity: 'Playing ' + ({ ttt: 'tic tac toe', c4: 'connect four', memory: 'memory match', wyr: 'would you rather', thisthat: 'this or that', draw: 'the drawing game' }[s.game]) });
+    ctx.rt.touch(me, { activity: 'Playing ' + s.game });
     return ok(res, { session: s });
   }],
   ['POST', /^\/api\/games\/([\w:-]+)\/reset$/, async ({ res, params, user, ctx }) => {

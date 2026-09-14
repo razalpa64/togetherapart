@@ -6,17 +6,18 @@ import { h, icon, toast, modal, field, emptyState } from '../ui.js';
 export function render(root) {
   let milestones = [];
   const offs = [];
-  const line = h('div', { class: 'story-line' });
+  const bucketLine = h('div', { class: 'card card-pad', style: { marginTop: '28px' } });
 
   root.append(h('div', {},
     h('div', { class: 'page-head' },
       h('div', { class: 't' },
         h('span', { class: 'eyebrow' }, 'How you got here'),
         h('h1', { class: 'display-2' }, 'Our Story'),
-        h('p', {}, 'The moments that made you, us.')),
+        h('p', {}, 'The moments that made you, us.'))),
       h('div', { class: 'actions' },
-        h('button', { class: 'btn btn-primary', onclick: () => edit() }, h('span', { html: icon('plus', 16) }), 'Add a milestone'))),
-    line));
+        h('button', { class: 'btn btn-primary', onclick: () => edit() }, h('span', { html: icon('plus', 16) }), 'Add a milestone')),
+    line,
+    bucketLine));
 
   async function load() {
     try {
@@ -61,7 +62,69 @@ export function render(root) {
       } }] });
   }
 
+  function drawBucketList() {
+    let items = JSON.parse(localStorage.getItem('ta_bucket_list') || 'null') || [
+      { id: '1', text: 'Watch a sunset together in person', done: false, emoji: '🌅' },
+      { id: '2', text: 'Cook a 3-course dinner together', done: false, emoji: '🍝' },
+      { id: '3', text: 'Stargaze in a cozy mountain cabin', done: false, emoji: '🏕️' },
+      { id: '4', text: 'Take a long road trip with no destination', done: false, emoji: '🚗' }
+    ];
+
+    const list = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px' } },
+      items.map(it => h('div', {
+        class: 'soft-card',
+        style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: '12px' }
+      },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
+          h('button', {
+            style: { fontSize: '1.2rem', background: 'none', border: 'none', cursor: 'pointer' },
+            onclick: () => {
+              it.done = !it.done;
+              localStorage.setItem('ta_bucket_list', JSON.stringify(items));
+              drawBucketList();
+            }
+          }, it.done ? '✅' : '⚪'),
+          h('span', { style: { fontSize: '1.05rem', textDecoration: it.done ? 'line-through' : 'none', opacity: it.done ? 0.6 : 1 } }, it.emoji + ' ' + it.text)
+        ),
+        h('button', {
+          class: 'icon-btn', style: { width: '28px', height: '28px' }, 'aria-label': 'Delete dream',
+          html: icon('trash', 14),
+          onclick: () => {
+            items = items.filter(x => x.id !== it.id);
+            localStorage.setItem('ta_bucket_list', JSON.stringify(items));
+            drawBucketList();
+          }
+        })
+      ))
+    );
+
+    const addBtn = h('button', {
+      class: 'btn btn-ghost btn-sm',
+      onclick: () => {
+        const txt = prompt('Add a dream to your shared bucket list:');
+        if (!txt || !txt.trim()) return;
+        const emojis = ['🌟', '✈️', '🏝️', '🥐', '🎶', '🏰', '☕'];
+        const em = emojis[Math.floor(Math.random() * emojis.length)];
+        items.push({ id: String(Date.now()), text: txt.trim(), done: false, emoji: em });
+        localStorage.setItem('ta_bucket_list', JSON.stringify(items));
+        drawBucketList();
+      }
+    }, '➕ Add a dream');
+
+    bucketLine.replaceChildren(
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
+        h('div', {},
+          h('span', { class: 'eyebrow' }, 'Someday Together'),
+          h('h2', { class: 'h2' }, 'Together Bucket List'),
+          h('p', { class: 'muted small' }, 'Dreams and adventures waiting for the two of you.')),
+        addBtn
+      ),
+      list
+    );
+  }
+
   offs.push(on('entity:milestones', () => load()));
   load();
+  drawBucketList();
   return { destroy() { offs.forEach(off => off()); } };
 }
