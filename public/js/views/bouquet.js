@@ -125,6 +125,78 @@ export function render(root, params) {
     return `${location.origin}${location.pathname}#/bouquet?b=${encoded}`;
   }
 
+  function downloadBouquetImage() {
+    if (getTotalFlowers() === 0) { toast('Pick at least one flower first! 🌸'); return; }
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = 680;
+    exportCanvas.height = 880;
+    const ctx = exportCanvas.getContext('2d');
+    
+    // Background gradient
+    const grad = ctx.createRadialGradient(340, 440, 50, 340, 440, 400);
+    grad.addColorStop(0, '#FAF6EE');
+    grad.addColorStop(1, '#F3ECE0');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 680, 880);
+
+    // Draw bush & flowers using Image objects
+    const bush = BUSHES[selectedBush];
+    const bushImg = new Image();
+    bushImg.onload = () => {
+      ctx.drawImage(bushImg, 140, 320, 400, 360);
+      
+      const flowerList = [];
+      Object.entries(counts).forEach(([id, num]) => {
+        const fl = FLOWERS.find(x => x.id === id);
+        for (let i = 0; i < num; i++) flowerList.push(fl);
+      });
+
+      let loadedCount = 0;
+      if (!flowerList.length) finish();
+      flowerList.forEach((fl, idx) => {
+        const flImg = new Image();
+        flImg.onload = () => {
+          loadedCount++;
+          const total = flowerList.length;
+          const spread = Math.min(total * 44, 420);
+          const startX = 340 - spread / 2;
+          const posX = startX + (idx / Math.max(total - 1, 1)) * spread + (idx % 2 === 0 ? -16 : 16);
+          const posY = 150 + (idx % 3) * 50 + Math.sin(idx) * 24;
+          const rot = (-24 + (idx / Math.max(total - 1, 1)) * 48 + (idx % 2 === 0 ? -4 : 4)) * Math.PI / 180;
+
+          ctx.save();
+          ctx.translate(posX, posY + 80);
+          ctx.rotate(rot);
+          ctx.drawImage(flImg, -80, -80, 160, 160);
+          ctx.restore();
+
+          if (loadedCount === flowerList.length) finish();
+        };
+        flImg.src = fl.image;
+      });
+    };
+    bushImg.src = bush.base;
+
+    function finish() {
+      if (cardNote) {
+        ctx.font = 'italic 26px Georgia, serif';
+        ctx.fillStyle = '#1C1613';
+        ctx.textAlign = 'center';
+        ctx.fillText(`"${cardNote.slice(0, 70)}"`, 340, 800);
+      }
+      ctx.font = '600 16px system-ui, sans-serif';
+      ctx.fillStyle = '#C87D70';
+      ctx.textAlign = 'center';
+      ctx.fillText('Digital Bouquet — Together, Apart', 340, 840);
+
+      const link = document.createElement('a');
+      link.download = `bouquet-${Date.now()}.png`;
+      link.href = exportCanvas.toDataURL('image/png', 0.95);
+      link.click();
+      toast('Bouquet Image downloaded to your device! 📸🌸');
+    }
+  }
+
   function draw() {
     viewContainer.replaceChildren();
     if (activeTab === 'studio') drawStudio();
@@ -280,6 +352,13 @@ export function render(root, params) {
       style: { resize: 'vertical', fontFamily: 'var(--font-serif)', fontSize: '1.05rem' }
     }, cardNote);
     noteArea.oninput = (e) => { cardNote = e.target.value; };
+
+    // HD PNG Image Download Action
+    const downloadImageBtn = h('button', {
+      class: 'btn btn-subtle',
+      style: { width: '100%', marginTop: '10px' },
+      onclick: () => downloadBouquetImage()
+    }, h('span', { html: icon('download', 16) }), 'Download Bouquet Image 📸');
 
     // Shareable Link Action
     const copyLinkBtn = h('button', {

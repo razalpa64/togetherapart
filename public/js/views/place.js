@@ -204,10 +204,9 @@ export function render(root, params) {
     if (!d) return toast('Couldn\'t reach your memories just now.');
     const withMedia = d.memories.filter(m => m.media);
     if (!withMedia.length) {
-      modal({ title: 'The frames are waiting', body: h('div', {},
+    const m = modal({ title: 'The frames are waiting', body: h('div', {},
         h('p', { class: 'muted' }, 'Every photo you pin to Memories shows up here, on your wall. Pin your first one and watch this room become yours.'),
         h('button', { class: 'btn btn-primary', style: { marginTop: '16px' }, onclick: () => { m.close(); location.hash = '#/memories'; } }, 'Go to Memories')) });
-      const m = null;
       return;
     }
     const mm = modal({ title: 'Your wall', body: h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' } },

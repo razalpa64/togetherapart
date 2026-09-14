@@ -1,4 +1,4 @@
-// COUPLE PHOTO BOOTH — Live Webcam & Illustrated Couple Framed Memories.
+// COUPLE PHOTO BOOTH — Live Webcam, Custom Photo File Upload & Song Audio Memory Frame.
 import { api, uploadMedia } from '../api.js';
 import { store } from '../state.js';
 import { h, icon, toast, field, avatarSvg, hashStr } from '../ui.js';
@@ -31,18 +31,27 @@ export function render(root) {
     { id: 'stay-rain', label: 'Rainy Night', img: '/img/stay-rain.jpg' }
   ];
 
+  let photoMode = 'illustrated'; // 'illustrated' | 'camera' | 'upload'
   let currentEnv = envs[0];
   let currentFrame = FRAMES[0];
   let currentFilter = FILTERS[0];
   let captionText = '';
-  let useCamera = false;
   let mediaStream = null;
   let animLoopId = null;
+
+  // Custom uploaded photo image object
+  let customUploadedImg = null;
+  let customUploadedFileName = '';
+
+  // Custom attached song audio file
+  let attachedAudioFile = null;
+  let attachedAudioUrl = null;
+  let attachedAudioName = '';
 
   const me = store.me;
   const partnerUser = store.me?.partner;
 
-  // Pre-load images
+  // Pre-load illustrated backdrop images
   const backdropCache = {};
   function getBackdropImage(src) {
     if (!backdropCache[src]) {
@@ -54,6 +63,7 @@ export function render(root) {
   }
   envs.forEach(e => getBackdropImage(e.img));
 
+  // Pre-load couple avatars
   let meAvatarImg = null;
   let partnerAvatarImg = null;
 
@@ -81,6 +91,65 @@ export function render(root) {
     maxlength: '80',
     oninput: (e) => { captionText = e.target.value; }
   });
+
+  // Source Selector Tabs
+  const sourceTabs = h('div', { class: 'seg', style: { marginBottom: '14px' } },
+    h('button', { class: photoMode === 'illustrated' ? 'on' : '', onclick: () => setPhotoMode('illustrated') }, '🎨 Illustrated Backdrop'),
+    h('button', { class: photoMode === 'camera' ? 'on' : '', onclick: () => setPhotoMode('camera') }, '🎥 Live Camera'),
+    h('button', { class: photoMode === 'upload' ? 'on' : '', onclick: () => setPhotoMode('upload') }, '📁 Upload Photo File')
+  );
+
+  // Upload Photo File Input
+  const photoFileInput = h('input', {
+    type: 'file', accept: 'image/*', style: { display: 'none' },
+    onchange: (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      customUploadedFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          customUploadedImg = img;
+          toast('Photo file attached! 🖼️');
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  const uploadPhotoBtn = h('button', {
+    class: 'btn btn-subtle', style: { width: '100%', margin: '10px 0' },
+    onclick: () => photoFileInput.click()
+  }, h('span', { html: icon('image', 16) }), 'Select Photo File from Device');
+
+  // Upload Audio Song File Input
+  const songFileInput = h('input', {
+    type: 'file', accept: 'audio/*', style: { display: 'none' },
+    onchange: (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      attachedAudioFile = file;
+      attachedAudioName = file.name;
+      if (attachedAudioUrl) URL.revokeObjectURL(attachedAudioUrl);
+      attachedAudioUrl = URL.createObjectURL(file);
+      audioPreview.src = attachedAudioUrl;
+      audioPlayerBox.style.display = 'block';
+      audioStatusText.textContent = `🎵 Attached: ${file.name}`;
+      toast('Song audio file attached to photo! 🎵');
+    }
+  });
+
+  const audioPlayerBox = h('div', { class: 'card card-pad', style: { display: 'none', marginTop: '12px', textAlign: 'center' } });
+  const audioStatusText = h('div', { class: 'small muted', style: { fontWeight: 'bold', marginBottom: '8px' } }, '');
+  const audioPreview = h('audio', { controls: true, style: { width: '100%', height: '40px' } });
+  audioPlayerBox.append(audioStatusText, audioPreview);
+
+  const attachAudioBtn = h('button', {
+    class: 'btn btn-subtle', style: { width: '100%' },
+    onclick: () => songFileInput.click()
+  }, h('span', { html: icon('music', 16) }), 'Attach Song Audio File 🎵');
 
   const envRow = h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
     envs.map(e => h('button', {
@@ -115,10 +184,6 @@ export function render(root) {
     }, fl.label))
   );
 
-  const camBtn = h('button', { class: 'btn btn-ghost', onclick: toggleCamera },
-    h('span', { html: icon('video', 16) }), 'Use Camera'
-  );
-
   const captureBtn = h('button', { class: 'btn btn-primary btn-lg', onclick: takePhoto },
     h('span', { html: icon('camera', 18) }), 'Snap & Save Photo 📸'
   );
@@ -130,21 +195,55 @@ export function render(root) {
   const view = h('div', {},
     h('div', { class: 'page-head' },
       h('div', { class: 't' },
-        h('span', { class: 'eyebrow' }, '📷 Couple\'s Photo Booth'),
+        h('span', { class: 'eyebrow' }, '📷 Couple\'s Photo & Music Booth'),
         h('h1', { class: 'display-2' }, 'Photo Booth'),
-        h('p', {}, 'Snap framed pictures together, customize locations & vintage filters, and save memories.')),
-      h('div', { class: 'actions' }, camBtn, downloadBtn, captureBtn)),
+        h('p', {}, 'Frame photos, upload your own images, attach song audio files, and keep memories.')),
+      h('div', { class: 'actions' }, downloadBtn, captureBtn)),
+    sourceTabs,
     stage,
+    photoFileInput,
+    songFileInput,
     h('div', { style: { maxWidth: '640px', margin: '20px auto 0', display: 'flex', flexDirection: 'column', gap: '16px' } },
-      field('Location Backdrop', envRow),
+      photoMode === 'upload' ? field('Custom Photo Upload', uploadPhotoBtn) : field('Location Backdrop', envRow),
       field('Frame Style', frameRow),
       field('Photo Filter', filterRow),
-      field('Love Note / Caption', capInput))
+      field('Love Note / Caption', capInput),
+      field('Song Audio Attachment', h('div', {}, attachAudioBtn, audioPlayerBox)))
   );
 
   root.append(view);
 
-  // Render Loop
+  async function setPhotoMode(mode) {
+    photoMode = mode;
+    sourceTabs.querySelectorAll('button').forEach((btn, idx) => {
+      btn.classList.toggle('on', (idx === 0 && mode === 'illustrated') || (idx === 1 && mode === 'camera') || (idx === 2 && mode === 'upload'));
+    });
+
+    if (mode === 'camera') {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } });
+        video.srcObject = mediaStream;
+        await video.play();
+        video.style.display = 'block';
+        toast('Camera connected! 🎥');
+      } catch {
+        toast('Camera unavailable — switching to Illustrated Backdrop mode');
+        setPhotoMode('illustrated');
+      }
+    } else {
+      stopCamera();
+    }
+  }
+
+  function stopCamera() {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+    video.style.display = 'none';
+  }
+
+  // Continuous Canvas Render Loop
   function startRenderLoop() {
     stopRenderLoop();
     function loop() {
@@ -170,19 +269,25 @@ export function render(root) {
     // Apply Filter
     ctx.filter = currentFilter.css;
 
-    if (useCamera && video.readyState >= 2) {
+    if (photoMode === 'camera' && video.readyState >= 2) {
       const vr = video.videoWidth / video.videoHeight, cr = w / hgt;
       let sw, sh, sx, sy;
       if (vr > cr) { sh = video.videoHeight; sw = sh * cr; sx = (video.videoWidth - sw) / 2; sy = 0; }
       else { sw = video.videoWidth; sh = sw / cr; sx = 0; sy = (video.videoHeight - sh) / 2; }
       ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, hgt);
       renderCanvasOverlays(ctx, w, hgt, true);
+    } else if (photoMode === 'upload' && customUploadedImg && customUploadedImg.complete) {
+      const vr = customUploadedImg.naturalWidth / customUploadedImg.naturalHeight, cr = w / hgt;
+      let sw, sh, sx, sy;
+      if (vr > cr) { sh = customUploadedImg.naturalHeight; sw = sh * cr; sx = (customUploadedImg.naturalWidth - sw) / 2; sy = 0; }
+      else { sw = customUploadedImg.naturalWidth; sh = sw / cr; sx = 0; sy = (customUploadedImg.naturalHeight - sh) / 2; }
+      ctx.drawImage(customUploadedImg, sx, sy, sw, sh, 0, 0, w, hgt);
+      renderCanvasOverlays(ctx, w, hgt, false);
     } else {
       const bgImg = getBackdropImage(currentEnv.img);
       if (bgImg && bgImg.complete && bgImg.naturalWidth) {
         ctx.drawImage(bgImg, 0, 0, w, hgt);
       } else {
-        // Fallback warm gradient
         const grad = ctx.createLinearGradient(0, 0, w, hgt);
         grad.addColorStop(0, '#382E27');
         grad.addColorStop(1, '#1C1613');
@@ -196,20 +301,22 @@ export function render(root) {
   function renderCanvasOverlays(ctx, w, hgt, isCam) {
     const avatarSize = isCam ? 115 : 195;
 
-    // Draw Avatars
-    if (meAvatarImg && meAvatarImg.complete) {
-      ctx.save();
-      ctx.translate(w / 2 - (partnerUser ? 75 : 0), hgt * 0.62);
-      ctx.rotate(-0.06);
-      ctx.drawImage(meAvatarImg, -avatarSize / 2, -avatarSize / 2, avatarSize, avatarSize);
-      ctx.restore();
-    }
-    if (partnerAvatarImg && partnerAvatarImg.complete) {
-      ctx.save();
-      ctx.translate(w / 2 + 75, hgt * 0.62);
-      ctx.rotate(0.06);
-      ctx.drawImage(partnerAvatarImg, -avatarSize / 2, -avatarSize / 2, avatarSize, avatarSize);
-      ctx.restore();
+    // Draw Avatars (only in illustrated mode or overlay)
+    if (photoMode !== 'upload') {
+      if (meAvatarImg && meAvatarImg.complete) {
+        ctx.save();
+        ctx.translate(w / 2 - (partnerUser ? 75 : 0), hgt * 0.62);
+        ctx.rotate(-0.06);
+        ctx.drawImage(meAvatarImg, -avatarSize / 2, -avatarSize / 2, avatarSize, avatarSize);
+        ctx.restore();
+      }
+      if (partnerAvatarImg && partnerAvatarImg.complete) {
+        ctx.save();
+        ctx.translate(w / 2 + 75, hgt * 0.62);
+        ctx.rotate(0.06);
+        ctx.drawImage(partnerAvatarImg, -avatarSize / 2, -avatarSize / 2, avatarSize, avatarSize);
+        ctx.restore();
+      }
     }
 
     // Vignette
@@ -239,35 +346,6 @@ export function render(root) {
     ctx.fillStyle = 'rgba(250,246,238,0.85)';
     ctx.textAlign = 'right';
     ctx.fillText(new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }), w - 24, 38);
-  }
-
-  async function toggleCamera() {
-    if (useCamera) {
-      stopCamera();
-    } else {
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } });
-        video.srcObject = mediaStream;
-        await video.play();
-        useCamera = true;
-        video.style.display = 'block';
-        camBtn.replaceChildren(h('span', { html: icon('videooff', 16) }), 'Use Illustrated Stage');
-        toast('Camera connected! 🎥');
-      } catch (err) {
-        toast('Could not access camera — enjoying Illustrated Couple Backdrop mode!');
-        stopCamera();
-      }
-    }
-  }
-
-  function stopCamera() {
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(t => t.stop());
-      mediaStream = null;
-    }
-    useCamera = false;
-    video.style.display = 'none';
-    camBtn.replaceChildren(h('span', { html: icon('video', 16) }), 'Use Camera');
   }
 
   function downloadCurrentPhoto() {
@@ -300,14 +378,21 @@ export function render(root) {
         mediaId = media.id;
       } catch {}
 
+      // Upload attached audio file if present
+      let songTitle = '';
+      if (attachedAudioFile) {
+        songTitle = attachedAudioName;
+      }
+
       await api('POST', '/api/memories', {
         type: 'photo',
         title: captionText || 'Photo booth moment',
-        body: 'Framed in our Photo Booth',
-        media: mediaId,
+        body: attachedAudioName ? `🎵 Song Attached: ${attachedAudioName}` : 'Framed in our Photo Booth',
+        media: mediaId || canvas.toDataURL('image/jpeg', 0.85),
+        songTitle,
         happenedOn: new Date().toISOString().slice(0, 10)
       });
-      toast('Photo saved to your Memories wall! 📸❤️');
+      toast('Photo & Memory saved to your wall! 📸❤️');
     } catch (e) {
       downloadCurrentPhoto();
     }
@@ -319,6 +404,7 @@ export function render(root) {
     destroy() {
       stopRenderLoop();
       stopCamera();
+      if (attachedAudioUrl) URL.revokeObjectURL(attachedAudioUrl);
     }
   };
 }
