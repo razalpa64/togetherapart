@@ -8,8 +8,8 @@
 .shell { display: grid; grid-template-columns: 228px 1fr; grid-template-rows: 64px 1fr; min-height: 100svh; }
 .rail { grid-row: 1 / 3; border-right: 1px solid var(--line); background: var(--paper-2); display: flex; flex-direction: column; padding: 18px 14px; position: sticky; top: 0; height: 100svh; overflow-y: auto; }
 .rail .wordmark { padding: 4px 10px 18px; font-size: 1.05rem; }
-.rail .nav-sec { margin-bottom: 18px; }
-.rail .nav-sec .tag { padding: 0 10px; margin-bottom: 6px; display: block; }
+.rail .nav-sec { margin-bottom: 18px; display: flex; flex-direction: column; gap: 2px; }
+.rail .nav-sec .tag { padding: 0 10px; margin-bottom: 6px; display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
 .rail a.nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; color: var(--ink-2); text-decoration: none; font-weight: 500; font-size: 0.94rem; transition: all 0.15s; position: relative; }
 .rail a.nav-item:hover { background: var(--card-2); color: var(--ink); }
 .rail a.nav-item[aria-current="page"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow-s); font-weight: 600; }
@@ -247,6 +247,19 @@
 .act-card .d { font-size: 0.76rem; color: var(--ink-3); font-weight: 400; }
 .act-card.locked { opacity: 0.55; cursor: default; }
 .act-card.locked .lockflag { margin-left: auto; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); border: 1px dashed var(--line-2); padding: 3px 8px; border-radius: 999px; font-weight: 700; }
+
+/* ---------- games arcade ---------- */
+.games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.game-card { display: flex; flex-direction: column; text-align: left; padding: 20px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); cursor: pointer; transition: transform 0.18s var(--ease), box-shadow 0.18s, border-color 0.18s; position: relative; }
+.game-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--rose-2); }
+.game-card .gc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.game-card .gc-emoji { font-size: 2rem; line-height: 1; }
+.game-card .gc-tag { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--rose-2); background: var(--rose-soft); padding: 3px 9px; border-radius: 999px; }
+[data-theme="evening"] .game-card .gc-tag { background: #3E2B23; }
+.game-card .gc-name { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.game-card .gc-desc { font-size: 0.84rem; color: var(--ink-2); line-height: 1.4; flex: 1; margin-bottom: 14px; }
+.game-card .gc-btn { font-size: 0.8rem; font-weight: 600; color: var(--rose-2); display: flex; align-items: center; gap: 4px; transition: transform 0.15s; }
+.game-card:hover .gc-btn { transform: translateX(3px); }
 
 /* game boards */
 .game-wrap { display: flex; flex-direction: column; gap: 18px; align-items: center; }

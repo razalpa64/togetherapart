@@ -135,7 +135,7 @@ function buildShell(app) {
 }
 
 function railLink(n) {
-  return h('a', { href: '#/' + n.id, dataset: { nav: n.id } }, h('span', { html: icon(n.icon, 19) }), h('span', {}, n.label));
+  return h('a', { href: '#/' + n.id, dataset: { nav: n.id }, class: 'nav-item' }, h('span', { html: icon(n.icon, 19) }), h('span', {}, n.label));
 }
 
 export async function performSignOut() {

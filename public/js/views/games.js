@@ -41,17 +41,17 @@ export function render(root) {
     stage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  const grid = h('div', { class: 'act-grid', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' } },
+  const grid = h('div', { class: 'games-grid' },
     GAMES_LIST.map(g => h('button', {
-      class: 'act-card',
-      style: { textAlign: 'left', cursor: 'pointer', padding: '18px', borderRadius: '16px', background: 'var(--bg-2)', border: '1px solid var(--border)', transition: 'all 0.2s ease' },
+      class: 'game-card',
       onclick: () => launchGame(g.id)
     },
-      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' } },
-        h('span', { style: { fontSize: '1.8rem' } }, g.emoji),
-        h('span', { class: 'tag', style: { fontSize: '0.75rem', padding: '3px 8px', borderRadius: '8px' } }, g.category)),
-      h('div', { class: 'n', style: { fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '4px' } }, g.name),
-      h('div', { class: 'd', style: { fontSize: '0.85rem', color: 'var(--ink-2)', lineHeight: 1.3 } }, g.desc)
+      h('div', { class: 'gc-top' },
+        h('span', { class: 'gc-emoji' }, g.emoji),
+        h('span', { class: 'gc-tag' }, g.category)),
+      h('div', { class: 'gc-name' }, g.name),
+      h('div', { class: 'gc-desc' }, g.desc),
+      h('div', { class: 'gc-btn' }, 'Play Together ➔')
     ))
   );
 
