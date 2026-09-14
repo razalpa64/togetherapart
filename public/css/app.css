@@ -373,3 +373,130 @@ body.has-demo-bar .rail { top: 34px; height: calc(100svh - 34px); padding-top: 1
 
 /* toast stack z-index fix for mobile */
 @media (max-width: 820px) { #toasts { top: auto; bottom: 96px; } .toast { animation: toastIn 0.3s var(--ease); } }
+
+/* ============================================================
+   MODALS, OVERLAYS & SHEETS (FIXED BACKDROP & CENTERING)
+   ============================================================ */
+#overlays { position: relative; z-index: 999; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(20, 16, 13, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 3vw, 32px);
+  animation: overlayFadeIn 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: 24px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  padding: clamp(20px, 4vw, 32px);
+  width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  position: relative;
+  animation: modalPopIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--ink);
+}
+
+.modal.wide {
+  width: min(840px, 100%);
+}
+
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.94) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal .h1, .modal h2 {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+  color: var(--ink);
+}
+
+.sheet {
+  background: var(--card);
+  border-top: 1px solid var(--line-2);
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.3);
+  padding: 24px clamp(18px, 4vw, 32px) calc(24px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  position: relative;
+  animation: sheetSlideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sheet-grip {
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line-2);
+  margin: 0 auto 18px;
+}
+
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.menu {
+  position: fixed;
+  z-index: 1100;
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: menuFadeIn 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-align: left;
+  transition: all 0.12s;
+}
+
+.menu button:hover {
+  background: var(--card-2);
+  color: var(--ink);
+}
+
+.menu .sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
