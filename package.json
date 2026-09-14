@@ -1,0 +1,18 @@
+{
+  "name": "together-apart",
+  "version": "1.0.0",
+  "description": "Together, Apart \u2014 a private little world for long-distance couples.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "serve:static": "node scripts/serve-static.mjs",
+    "seed-demo": "node scripts/seed-demo.mjs",
+    "test": "node test/ws-test.mjs",
+    "test:supabase": "./scripts/test-supabase-local.sh",
+    "test:supabase-client": "./test/supabase-client-smoke.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

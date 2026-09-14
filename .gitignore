@@ -1,0 +1,17 @@
+# secrets
+.env
+
+# local run
+data/
+*.log
+
+# deps / build
+node_modules/
+dist/
+build/
+.vercel/
+.netlify/
+
+# keep the vendored supabase bundle and demo photos in git
+!public/vendor/
+!public/img/
