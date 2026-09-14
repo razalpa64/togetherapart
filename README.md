@@ -150,4 +150,3 @@ For the self-hosted path, the seams are deliberate:
 ---
 
 *Built for two. Your world stays private — always.*
-# togetherapart
