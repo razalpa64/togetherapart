@@ -1,7 +1,7 @@
-// DIGITAL BOUQUET STUDIO — Create, customize, arrange & send digital flower bouquets.
+// DIGITAL BOUQUET STUDIO — Create, customize, arrange, share & send digital flower bouquets.
 import { partner, store } from '../state.js';
 import { storage } from '../storage.js';
-import { h, icon, toast } from '../ui.js';
+import { h, icon, toast, modal } from '../ui.js';
 import { send } from '../ws.js';
 
 export const FLOWERS = [
@@ -26,11 +26,11 @@ export const BUSHES = [
 ];
 
 export const WRAPPERS = [
-  { id: 'wrap-rose', label: 'Blushing Rose', bg: 'linear-gradient(135deg, #fbcfe8 0%, #f472b6 100%)', border: '#f472b6' },
-  { id: 'wrap-classic', label: 'Classic Cream', bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', border: '#fde68a' },
-  { id: 'wrap-sage', label: 'Sage Garden', bg: 'linear-gradient(135deg, #dcfce7 0%, #86efac 100%)', border: '#86efac' },
-  { id: 'wrap-slate', label: 'Midnight Slate', bg: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)', border: '#475569', dark: true },
-  { id: 'vase-glass', label: 'Glass Vase 🏺', bg: 'rgba(255, 255, 255, 0.4)', border: 'rgba(255, 255, 255, 0.8)', glass: true },
+  { id: 'wrap-rose', label: 'Blushing Rose', type: 'wrap', bg: 'linear-gradient(135deg, #fbcfe8 0%, #f472b6 100%)', ribbon: '#be185d', border: '#f472b6' },
+  { id: 'wrap-classic', label: 'Vintage Parchment', type: 'wrap', bg: 'linear-gradient(135deg, #fef3c7 0%, #d97706 100%)', ribbon: '#92400e', border: '#fde68a' },
+  { id: 'wrap-sage', label: 'Sage Velvet', type: 'wrap', bg: 'linear-gradient(135deg, #dcfce7 0%, #16a34a 100%)', ribbon: '#14532d', border: '#86efac' },
+  { id: 'wrap-slate', label: 'Midnight Silk', type: 'wrap', bg: 'linear-gradient(135deg, #334155 0%, #0f172a 100%)', ribbon: '#38bdf8', border: '#475569', dark: true },
+  { id: 'vase-glass', label: 'Crystal Glass Vase 🏺', type: 'vase', bg: 'rgba(255, 255, 255, 0.45)', border: 'rgba(255, 255, 255, 0.85)', glass: true },
 ];
 
 export const TEMPLATES = [
@@ -40,17 +40,73 @@ export const TEMPLATES = [
   { id: 'love', name: '❤️ Pure Romance', counts: { rose: 5, carnation: 2 }, wrap: 'wrap-rose' },
 ];
 
-export function render(root) {
+export function render(root, params) {
   let activeTab = 'studio'; // 'studio' | 'garden'
-  let counts = { rose: 2, peony: 1, daisy: 2 };
+  let counts = { rose: 3, peony: 2, daisy: 2 };
   let selectedBush = 0;
   let selectedWrapper = 'wrap-rose';
   let cardNote = 'Sending you a bouquet of love and warm thoughts today! 💐';
 
   const viewContainer = h('div', {});
 
+  // Handle direct share link parameter e.g. #/bouquet?b=...
+  if (params && params.get('b')) {
+    try {
+      const decoded = JSON.parse(atob(decodeURIComponent(params.get('b'))));
+      if (decoded && decoded.counts) {
+        setTimeout(() => showReceivedModal(decoded), 200);
+      }
+    } catch {}
+  }
+
+  function showReceivedModal(bData) {
+    const wr = WRAPPERS.find(w => w.id === bData.wrapper) || WRAPPERS[0];
+    const flList = [];
+    Object.entries(bData.counts || {}).forEach(([id, num]) => {
+      const fl = FLOWERS.find(x => x.id === id);
+      if (fl) flList.push(`${num}x ${fl.name} (${fl.meaning})`);
+    });
+
+    const body = h('div', { style: { textAlign: 'center', padding: '10px' } },
+      h('div', { style: { fontSize: '4rem', marginBottom: '10px', animation: 'joinedIn 0.8s var(--ease)' } }, '💐'),
+      h('span', { class: 'eyebrow', style: { color: 'var(--rose)' } }, 'A Special Delivery For You'),
+      h('h2', { class: 'display-2', style: { margin: '8px 0' } }, 'You Received a Bouquet!'),
+      h('p', { class: 'serif', style: { fontSize: '1.25rem', fontStyle: 'italic', background: 'var(--card-2)', padding: '16px 20px', borderRadius: '16px', margin: '14px 0', border: '1px solid var(--line)' } }, `"${bData.message || 'Sending you love!'}"`),
+      h('div', { style: { textAlign: 'left', background: 'var(--paper)', padding: '14px', borderRadius: '14px', fontSize: '0.9rem', color: 'var(--ink-2)' } },
+        h('div', { style: { fontWeight: 'bold', marginBottom: '6px', color: 'var(--ink)' } }, 'Flowers in this bouquet:'),
+        flList.map(item => h('div', { style: { margin: '4px 0' } }, '• ' + item))),
+      h('div', { style: { marginTop: '16px', fontSize: '0.85rem', color: 'var(--ink-3)' } }, `— Sent with love by ${bData.from || 'your partner'}`)
+    );
+
+    modal({
+      title: 'Received Digital Bouquet',
+      body,
+      actions: [
+        { label: 'Save to Our Garden 🏡', class: 'btn-primary', onclick: (close) => {
+          const saved = storage.get('ta_bouquets') || [];
+          saved.unshift(bData);
+          storage.set('ta_bouquets', saved);
+          toast('Saved to your shared garden!');
+          activeTab = 'garden';
+          draw();
+          close();
+        }},
+        { label: 'Create a Bouquet Back 🌸', class: 'btn-ghost', onclick: (close) => {
+          activeTab = 'studio';
+          draw();
+          close();
+        }}
+      ]
+    });
+  }
+
   function getTotalFlowers() {
     return Object.values(counts).reduce((a, b) => a + b, 0);
+  }
+
+  function getShareableLink(bData) {
+    const encoded = encodeURIComponent(btoa(JSON.stringify(bData)));
+    return `${location.origin}${location.pathname}#/bouquet?b=${encoded}`;
   }
 
   function draw() {
@@ -96,53 +152,84 @@ export function render(root) {
 
     const canvas = h('div', {
       style: {
-        width: '340px', height: '420px', borderRadius: '24px', position: 'relative', overflow: 'hidden',
-        background: 'radial-gradient(circle, var(--bg-2) 0%, var(--bg-3) 100%)', boxShadow: 'var(--shadow-s)',
-        border: '1px solid var(--border)', margin: '0 auto'
+        width: '340px', height: '440px', borderRadius: '24px', position: 'relative', overflow: 'hidden',
+        background: 'radial-gradient(circle, var(--paper-2) 0%, var(--paper) 100%)', boxShadow: 'var(--shadow)',
+        border: '1px solid var(--line)', margin: '0 auto'
       }
     });
 
     // Bush background
     const bush = BUSHES[selectedBush];
-    canvas.append(h('img', { src: bush.base, style: { position: 'absolute', bottom: '60px', left: '50%', transform: 'translateX(-50%)', width: '280px', height: 'auto', opacity: 0.95 } }));
+    canvas.append(h('img', { src: bush.base, style: { position: 'absolute', bottom: '80px', left: '50%', transform: 'translateX(-50%)', width: '290px', height: 'auto', opacity: 0.95 } }));
 
-    // Flowers Stems
+    // Stems & Flowers
     flowerList.forEach((fl, idx) => {
       const total = flowerList.length;
-      const spread = Math.min(total * 22, 220);
+      const spread = Math.min(total * 22, 210);
       const startX = 170 - spread / 2;
-      const posX = startX + (idx / Math.max(total - 1, 1)) * spread + (idx % 2 === 0 ? -10 : 10);
-      const posY = 100 + (idx % 3) * 25 + Math.sin(idx) * 15;
-      const rot = -25 + (idx / Math.max(total - 1, 1)) * 50 + (idx % 2 === 0 ? -5 : 5);
+      const posX = startX + (idx / Math.max(total - 1, 1)) * spread + (idx % 2 === 0 ? -8 : 8);
+      const posY = 75 + (idx % 3) * 26 + Math.sin(idx) * 12;
+      const rot = -24 + (idx / Math.max(total - 1, 1)) * 48 + (idx % 2 === 0 ? -4 : 4);
 
       canvas.append(h('img', {
         src: fl.image,
         alt: fl.name,
         style: {
-          position: 'absolute', left: `${posX - 40}px`, top: `${posY}px`, width: '90px', height: '90px',
-          objectFit: 'contain', transform: `rotate(${rot}deg)`, filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.2))',
+          position: 'absolute', left: `${posX - 40}px`, top: `${posY}px`, width: '88px', height: '88px',
+          objectFit: 'contain', transform: `rotate(${rot}deg)`, filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.18))',
           transition: 'all 0.3s ease'
         }
       }));
     });
 
     // Bush Top
-    canvas.append(h('img', { src: bush.top, style: { position: 'absolute', bottom: '60px', left: '50%', transform: 'translateX(-50%)', width: '280px', height: 'auto', zIndex: 10, pointerEvents: 'none' } }));
+    canvas.append(h('img', { src: bush.top, style: { position: 'absolute', bottom: '80px', left: '50%', transform: 'translateX(-50%)', width: '290px', height: 'auto', zIndex: 10, pointerEvents: 'none' } }));
 
-    // Wrapper Graphic
+    // Beautiful High-Definition Flower Holder / Wrapper
     const wr = WRAPPERS.find(w => w.id === selectedWrapper) || WRAPPERS[0];
-    const wrapperOverlay = h('div', {
-      style: {
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '180px', zIndex: 20,
-        background: wr.bg, clipPath: 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)',
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.15)', borderTop: `3px solid ${wr.border}`,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: wr.dark ? '#fff' : '#1e293b',
-        padding: '20px'
-      }
-    },
-      h('div', { style: { fontSize: '1.5rem', marginBottom: '4px' } }, '🎀'),
-      h('span', { class: 'serif', style: { fontSize: '1rem', fontStyle: 'italic', fontWeight: 'bold' } }, wr.label)
-    );
+    let wrapperOverlay;
+
+    if (wr.type === 'vase') {
+      // Glass Vase Design with translucency, highlights & ribbon tie
+      wrapperOverlay = h('div', {
+        style: {
+          position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
+          width: '140px', height: '180px', zIndex: 20,
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(220,235,245,0.3) 50%, rgba(255,255,255,0.5) 100%)',
+          backdropFilter: 'blur(6px)', border: '2px solid rgba(255,255,255,0.85)',
+          borderRadius: '24px 24px 44px 44px', boxShadow: '0 12px 28px rgba(0,0,0,0.15), inset 0 2px 10px rgba(255,255,255,0.9)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          color: '#1e293b', overflow: 'hidden'
+        }
+      },
+        h('div', { style: { position: 'absolute', top: '12px', width: '90%', height: '2px', background: 'rgba(255,255,255,0.9)', borderRadius: '999px' } }),
+        h('div', { style: { fontSize: '1.6rem', zIndex: 2, marginBottom: '2px' } }, '🎀'),
+        h('span', { class: 'serif', style: { fontSize: '0.9rem', fontStyle: 'italic', fontWeight: 'bold', zIndex: 2 } }, wr.label)
+      );
+    } else {
+      // Elegant Folding Paper Cone Wrap with Satin Ribbon Knot Accent
+      wrapperOverlay = h('div', {
+        style: {
+          position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '280px', height: '200px', zIndex: 20,
+          background: wr.bg,
+          clipPath: 'polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)',
+          boxShadow: '0 -6px 24px rgba(0,0,0,0.2), inset 0 3px 12px rgba(255,255,255,0.3)',
+          borderTop: `4px solid ${wr.border}`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          color: wr.dark ? '#fff' : '#1e293b', padding: '20px'
+        }
+      },
+        h('div', {
+          style: {
+            background: wr.ribbon, color: '#fff', padding: '4px 14px', borderRadius: '999px',
+            fontSize: '0.8rem', fontWeight: 'bold', boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+            display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px'
+          }
+        }, h('span', {}, '🎀'), h('span', {}, 'Handcrafted')),
+        h('span', { class: 'serif', style: { fontSize: '1.05rem', fontStyle: 'italic', fontWeight: 'bold', textShadow: wr.dark ? '0 1px 4px rgba(0,0,0,0.5)' : 'none' } }, wr.label)
+      );
+    }
     canvas.append(wrapperOverlay);
 
     // Template selector
@@ -180,10 +267,31 @@ export function render(root) {
     }, cardNote);
     noteArea.oninput = (e) => { cardNote = e.target.value; };
 
+    // Shareable Link Action
+    const copyLinkBtn = h('button', {
+      class: 'btn btn-ghost',
+      style: { width: '100%', marginTop: '10px' },
+      onclick: () => {
+        if (getTotalFlowers() === 0) { toast('Pick at least one flower first! 🌸'); return; }
+        const bData = {
+          id: 'bq_' + Date.now(),
+          counts, wrapper: selectedWrapper, bush: selectedBush,
+          message: cardNote.trim(), from: store.me?.user?.name || 'Your Partner',
+          date: new Date().toISOString()
+        };
+        const link = getShareableLink(bData);
+        navigator.clipboard.writeText(link).then(() => {
+          toast('Shareable Bouquet Link copied to clipboard! 🔗');
+        }).catch(() => {
+          prompt('Copy your bouquet link:', link);
+        });
+      }
+    }, h('span', { html: icon('link', 16) }), 'Copy Shareable Link 🔗');
+
     // Send Button
     const sendBtn = h('button', {
       class: 'btn btn-primary btn-lg',
-      style: { width: '100%', marginTop: '16px' },
+      style: { width: '100%', marginTop: '14px' },
       onclick: async () => {
         if (getTotalFlowers() === 0) { toast('Pick at least one flower to build your bouquet! 🌸'); return; }
         const bData = {
@@ -196,7 +304,6 @@ export function render(root) {
         saved.unshift(bData);
         storage.set('ta_bouquets', saved);
 
-        // Send realtime float emoji
         send({ t: 'float', emoji: '💐' });
         toast('Bouquet sent to your partner! 💐💖');
         activeTab = 'garden';
@@ -225,7 +332,8 @@ export function render(root) {
           bushSelect,
           h('label', { class: 'lbl', style: { marginTop: '12px' } }, 'Love Note Attachment'),
           noteArea,
-          sendBtn
+          sendBtn,
+          copyLinkBtn
         )
       )
     );
@@ -266,6 +374,8 @@ export function render(root) {
           if (fl) flList.push(`${num}x ${fl.name}`);
         });
 
+        const shareLink = getShareableLink(b);
+
         return h('div', { class: 'card card-pad', style: { borderRadius: '20px', border: '1px solid var(--border)' } },
           h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' } },
             h('span', { class: 'tag', style: { background: wr.bg, color: wr.dark ? '#fff' : '#1e293b', fontWeight: 'bold' } }, wr.label),
@@ -274,7 +384,15 @@ export function render(root) {
           h('div', { style: { fontSize: '2.5rem', textAlign: 'center', margin: '14px 0' } }, '💐'),
           h('div', { class: 'serif', style: { fontSize: '1.05rem', fontStyle: 'italic', background: 'var(--bg-3)', padding: '14px', borderRadius: '12px', marginBottom: '12px' } }, `"${b.message}"`),
           h('div', { class: 'small muted', style: { marginBottom: '8px' } }, h('b', {}, 'Flowers: '), flList.join(', ')),
-          h('div', { class: 'small faint', style: { textAlign: 'right', fontWeight: 'bold' } }, `— Sent by ${b.from}`)
+          h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' } },
+            h('button', {
+              class: 'btn btn-ghost btn-sm',
+              onclick: () => {
+                navigator.clipboard.writeText(shareLink).then(() => toast('Bouquet link copied! 🔗'));
+              }
+            }, 'Copy Link 🔗'),
+            h('div', { class: 'small faint', style: { fontWeight: 'bold' } }, `— Sent by ${b.from}`)
+          )
         );
       })
     );
@@ -294,7 +412,7 @@ export function render(root) {
     h('div', { class: 't' },
       h('span', { class: 'eyebrow', style: { color: 'var(--rose)' } }, '🌸 Digital Flower Studio'),
       h('h1', { class: 'display-2' }, 'Digital Bouquet'),
-      h('p', {}, 'Pick, arrange, and send custom flower bouquets with romantic meanings to your partner.')),
+      h('p', {}, 'Pick, arrange, and send custom flower bouquets with romantic meanings or share via direct link.')),
     h('div', { class: 'actions' },
       h('button', { class: 'btn ' + (activeTab === 'studio' ? 'btn-primary' : 'btn-ghost'), onclick: () => { activeTab = 'studio'; draw(); } }, '💐 Studio'),
       h('button', { class: 'btn ' + (activeTab === 'garden' ? 'btn-primary' : 'btn-ghost'), onclick: () => { activeTab = 'garden'; draw(); } }, '🏡 Our Garden'))

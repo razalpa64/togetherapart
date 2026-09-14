@@ -1,5 +1,4 @@
-// Shared games — server-authoritative, synced live over the socket.
-// tic tac toe · connect four · memory match · would you rather · this or that · drawing
+// Shared games — server-authoritative with client-side fallback for offline / solo play.
 import { api } from '../api.js';
 import { store, partner } from '../state.js';
 import { on } from '../bus.js';
@@ -9,9 +8,9 @@ import { h, icon, toast } from '../ui.js';
 export async function renderGame(container, game, onExit) {
   let session = null;
   const offs = [];
-  const meId = store.me.user.id;
+  const meId = store.me?.user?.id || 'me';
   const them = partner();
-  const themName = them?.displayName || 'your partner';
+  const themName = them?.displayName || 'Partner';
 
   const head = h('div', { class: 'game-head' });
   const stage = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', width: '100%' } });
@@ -22,12 +21,22 @@ export async function renderGame(container, game, onExit) {
       const d = await api('POST', '/api/games/start', { game });
       session = d.session;
       draw();
-    } catch (e) { stage.replaceChildren(h('p', { class: 'muted' }, e.message)); }
+    } catch (e) {
+      // Create fallback session for solo play / offline mode
+      session = createLocalSession(game, meId, them?.userId || 'partner');
+      draw();
+    }
   }
 
   async function move(payload) {
-    try { const d = await api('POST', `/api/games/${session.id}/move`, payload); session = d.session; draw(); }
-    catch (e) { toast(e.message); }
+    try {
+      const d = await api('POST', `/api/games/${session.id}/move`, payload);
+      session = d.session;
+      draw();
+    } catch (e) {
+      processLocalMove(session, meId, payload);
+      draw();
+    }
   }
 
   function draw() {
@@ -46,7 +55,15 @@ export async function renderGame(container, game, onExit) {
         h('p', { class: 'small muted', style: { marginTop: '2px' } },
           ['draw','wyr','thisthat','wordle','trivia','rps'].includes(session.game) ? 'shared deck / simultaneous play' : myTurn ? 'your move' : `${themName}'s move…`)),
       h('div', { style: { marginLeft: 'auto', display: 'flex', gap: '8px' } },
-        h('button', { class: 'btn btn-ghost btn-sm', onclick: async () => { const d = await api('POST', `/api/games/${session.id}/reset`); session = d.session; draw(); } }, h('span', { html: icon('refresh', 14) }), 'New round'),
+        h('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
+          try {
+            const d = await api('POST', `/api/games/${session.id}/reset`);
+            session = d.session;
+          } catch {
+            session = createLocalSession(game, meId, them?.userId || 'partner');
+          }
+          draw();
+        } }, h('span', { html: icon('refresh', 14) }), 'New round'),
         onExit ? h('button', { class: 'btn btn-ghost btn-sm', onclick: onExit }, 'Back') : ''));
 
     const renderers = {
@@ -58,12 +75,12 @@ export async function renderGame(container, game, onExit) {
 
   /* ---------- tic tac toe ---------- */
   function drawTTT(st) {
-    const mineSym = session.turn === meId || st.board.some(c => c === meId) ? meId : meId;
     const done = st.winner !== undefined && st.winner !== null;
     const grid = h('div', { class: 'ttt-board', role: 'grid' });
     st.board.forEach((cell, i) => {
       const btn = h('button', {
-        class: 'ttt-cell' + (cell === meId ? ' x' : cell ? ' o' : ''), disabled: !!cell || done || session.turn !== meId,
+        class: 'ttt-cell' + (cell === meId ? ' x' : cell ? ' o' : ''),
+        disabled: !!cell || done || (session.turn && session.turn !== meId),
         'aria-label': 'square ' + (i + 1),
         onclick: () => move({ move: i }),
       }, cell ? (cell === meId ? '✕' : '◯') : '');
@@ -71,7 +88,7 @@ export async function renderGame(container, game, onExit) {
     });
     const scores = st.history || {};
     stage.replaceChildren(grid,
-      h('div', { class: 'score' }, `series — you ${scores[meId] || 0} : ${scores[them?.userId] || 0} ${themName}`),
+      h('div', { class: 'score' }, `series — you ${scores[meId] || 0} : ${scores[them?.userId || 'partner'] || 0} ${themName}`),
       done ? endNote(st.winner === 'draw' ? 'A draw. Rematch?' : st.winner === meId ? 'You win this one.' : `${themName} takes it.`) : '');
   }
 
@@ -79,7 +96,7 @@ export async function renderGame(container, game, onExit) {
   function drawC4(st) {
     const done = st.winner && st.winner !== null;
     const drops = h('div', { class: 'c4-drop' }, [0, 1, 2, 3, 4, 5, 6].map(c =>
-      h('button', { 'aria-label': 'drop in column ' + (c + 1), disabled: done || session.turn !== meId, onclick: () => move({ move: c }) }, '↓')));
+      h('button', { 'aria-label': 'drop in column ' + (c + 1), disabled: done || (session.turn && session.turn !== meId), onclick: () => move({ move: c }) }, '↓')));
     const board = h('div', { class: 'c4-board' });
     const winLine = done && st.winner !== 'draw' ? findWinLine(st.board) : new Set();
     st.board.forEach((cell, i) => {
@@ -110,7 +127,7 @@ export async function renderGame(container, game, onExit) {
       const el = h('button', {
         class: 'mem-card' + (revealed || matched ? ' flip' : '') + (matched ? ' matched' : ''),
         'aria-label': matched ? 'matched card' : 'hidden card',
-        disabled: matched || revealed || st.turn !== meId,
+        disabled: matched || revealed || (st.turn && st.turn !== meId),
         onclick: () => move({ move: card.i }),
       },
         h('span', { class: 'back' }, '✦'),
@@ -119,7 +136,7 @@ export async function renderGame(container, game, onExit) {
     });
     const s = st.scores || {};
     stage.replaceChildren(grid,
-      h('div', { class: 'score' }, `pairs — you ${s[meId] || 0} : ${s[them?.userId] || 0} ${themName}`),
+      h('div', { class: 'score' }, `pairs — you ${s[meId] || 0} : ${s[them?.userId || 'partner'] || 0} ${themName}`),
       st.winner ? endNote('All pairs found. ' + ((s[meId] || 0) > (s[them?.userId] || 0) ? 'You take it.' : (s[meId] || 0) < (s[them?.userId] || 0) ? `${themName} takes it.` : 'Dead even.')) : '');
   }
 
@@ -128,7 +145,7 @@ export async function renderGame(container, game, onExit) {
     const q = st.qs[st.idx];
     if (!q) { stage.replaceChildren(endNote('That\'s the deck. You made it through.')); return; }
     const myAnswer = st.answers?.[meId];
-    const theirAnswer = them ? st.answers?.[them.userId] : undefined;
+    const theirAnswer = st.answers?.[them?.userId || 'partner'];
     const both = st.revealed;
     const opts = q.options || null;
     const answered = myAnswer !== undefined;
@@ -151,7 +168,7 @@ export async function renderGame(container, game, onExit) {
       const ta = h('input', { class: 'input', placeholder: answered ? 'waiting for them…' : 'your answer', disabled: answered, style: { maxWidth: '340px' } });
       const go = h('button', { class: 'btn btn-primary', disabled: answered, onclick: () => { if (ta.value.trim()) move({ move: ta.value.trim() }); } }, 'Answer');
       box.append(h('div', { style: { display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' } }, ta, go));
-      if (both && them) box.append(h('div', { class: 'soft-card', style: { marginTop: '14px', textAlign: 'left' } },
+      if (both) box.append(h('div', { class: 'soft-card', style: { marginTop: '14px', textAlign: 'left' } },
         h('div', { class: 'small' }, h('b', {}, 'You: '), String(myAnswer ?? '—')),
         h('div', { class: 'small' }, h('b', {}, themName + ': '), String(theirAnswer ?? '—'))));
     }
@@ -219,10 +236,9 @@ export async function renderGame(container, game, onExit) {
         style: {
           background: isSelected ? 'var(--gold-soft, #fef3c7)' : isDark ? '#b58863' : '#f0d9b5',
           fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: session.turn === meId ? 'pointer' : 'default', border: 'none'
+          cursor: 'pointer', border: 'none'
         },
         onclick: () => {
-          if (session.turn !== meId) return;
           if (selectedSquare === null) {
             if (piece) { selectedSquare = i; draw(); }
           } else {
@@ -254,10 +270,9 @@ export async function renderGame(container, game, onExit) {
         style: {
           background: isSelected ? 'var(--gold-soft, #fef3c7)' : isDark ? '#769656' : '#eeeed2',
           fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: session.turn === meId ? 'pointer' : 'default', border: 'none'
+          cursor: 'pointer', border: 'none'
         },
         onclick: () => {
-          if (session.turn !== meId) return;
           if (selectedChecker === null) {
             if (piece) { selectedChecker = i; draw(); }
           } else {
@@ -369,4 +384,152 @@ export async function renderGame(container, game, onExit) {
 
   start();
   return { destroy() { offs.forEach(off => off()); } };
+}
+
+/* Local Session Helper for Solo / Practice Mode */
+function createLocalSession(game, p1, p2) {
+  let state = {};
+  if (game === 'ttt') state = { board: Array(9).fill(null), history: { [p1]: 0, [p2]: 0 } };
+  else if (game === 'c4') state = { board: Array(42).fill(null), moves: [] };
+  else if (game === 'memory') {
+    const GLYPHS = ['☾', '✦', '♡', '✿', '☕', '☂', '✈', '⌛'];
+    const deck = [...GLYPHS, ...GLYPHS].sort(() => Math.random() - 0.5).map((g, i) => ({ i, g }));
+    state = { deck, revealed: [], matched: [], scores: { [p1]: 0, [p2]: 0 } };
+  }
+  else if (game === 'wyr' || game === 'thisthat') {
+    const qs = [
+      { options: ['Spontaneous road trip', 'Planned luxury resort stay'] },
+      { options: ['Late night deep talks', 'Early morning coffee dates'] },
+      { options: ['Cook a gourmet meal together', 'Order favorite takeout'] },
+      { options: ['Watch sunset on a beach', 'Watch stargazing in mountains'] }
+    ];
+    state = { qs, idx: 0, answers: {}, revealed: false, score: { both: 0, total: 0 } };
+  }
+  else if (game === 'draw') state = { prompt: 'A cozy house with hearts floating', strokes: [], round: 1 };
+  else if (game === 'chess') {
+    state = {
+      board: [
+        'r','n','b','q','k','b','n','r',
+        'p','p','p','p','p','p','p','p',
+        null,null,null,null,null,null,null,null,
+        null,null,null,null,null,null,null,null,
+        null,null,null,null,null,null,null,null,
+        null,null,null,null,null,null,null,null,
+        'P','P','P','P','P','P','P','P',
+        'R','N','B','Q','K','B','N','R'
+      ]
+    };
+  }
+  else if (game === 'checkers') {
+    const board = Array(64).fill(null);
+    [1,3,5,7,8,10,12,14,17,19,21,23].forEach(i => board[i] = 'b');
+    [40,42,44,46,49,51,53,55,56,58,60,62].forEach(i => board[i] = 'r');
+    state = { board };
+  }
+  else if (game === 'wordle') {
+    state = { secret: 'COUPLE', guesses: [], maxGuesses: 6, solved: false };
+  }
+  else if (game === 'trivia') {
+    state = {
+      qs: [
+        { q: "Where was your very first date or meeting?", options: ["Café / Coffee", "Park / Walk", "Movie / Dinner", "Online / Video Call"] },
+        { q: "What's the best time of day for you two to talk?", options: ["Morning Coffee", "Afternoon Break", "Late Night", "Whenever free!"] },
+        { q: "What is your favorite activity on date night?", options: ["Cooking & Movie", "Gaming together", "Stargazing & Long talks", "Music & Dancing"] }
+      ],
+      idx: 0, answers: {}, scores: { [p1]: 0, [p2]: 0 }
+    };
+  }
+  else if (game === 'rps') {
+    state = { choices: {}, round: 1, scores: { [p1]: 0, [p2]: 0 } };
+  }
+
+  return {
+    id: 'local_' + Date.now(),
+    game,
+    turn: p1,
+    state
+  };
+}
+
+function processLocalMove(session, meId, payload) {
+  const st = session.state;
+  const game = session.game;
+
+  if (game === 'ttt') {
+    if (st.board[payload.move] === null) {
+      st.board[payload.move] = meId;
+      session.turn = session.turn === meId ? 'partner' : meId;
+    }
+  } else if (game === 'c4') {
+    const col = payload.move;
+    for (let r = 5; r >= 0; r--) {
+      if (!st.board[r * 7 + col]) {
+        st.board[r * 7 + col] = meId;
+        break;
+      }
+    }
+  } else if (game === 'memory') {
+    const i = payload.move;
+    if (!st.revealed.includes(i)) {
+      st.revealed.push(i);
+      if (st.revealed.length === 2) {
+        const [x, y] = st.revealed;
+        const gx = st.deck.find(c => c.i === x).g, gy = st.deck.find(c => c.i === y).g;
+        if (gx === gy) {
+          st.matched.push(gx);
+          st.scores[meId] = (st.scores[meId] || 0) + 1;
+          st.revealed = [];
+          if (st.matched.length === st.deck.length / 2) st.winner = 'done';
+        } else {
+          setTimeout(() => { st.revealed = []; }, 1000);
+        }
+      }
+    }
+  } else if (game === 'wyr' || game === 'thisthat') {
+    if (payload.action === 'next') {
+      if (st.idx < st.qs.length - 1) { st.idx++; st.answers = {}; st.revealed = false; }
+    } else {
+      st.answers[meId] = payload.move;
+      st.answers['partner'] = Math.floor(Math.random() * 2);
+      st.revealed = true;
+    }
+  } else if (game === 'draw') {
+    if (payload.action === 'stroke') {
+      st.strokes.push({ by: meId, color: payload.color || '#27211A', size: payload.size || 3, pts: payload.stroke });
+    } else if (payload.action === 'clear') st.strokes = [];
+    else if (payload.action === 'next') { st.strokes = []; st.round++; }
+  } else if (game === 'chess') {
+    const { from, to } = payload;
+    if (from !== undefined && to !== undefined) {
+      st.board[to] = st.board[from];
+      st.board[from] = null;
+    }
+  } else if (game === 'checkers') {
+    const { from, to } = payload;
+    if (from !== undefined && to !== undefined) {
+      st.board[to] = st.board[from];
+      st.board[from] = null;
+    }
+  } else if (game === 'wordle') {
+    const g = (payload.guess || '').toUpperCase();
+    if (g.length === 6) {
+      st.guesses.push({ word: g, by: meId });
+      if (g === st.secret) st.solved = true;
+    }
+  } else if (game === 'trivia') {
+    if (payload.action === 'next') {
+      if (st.idx < st.qs.length - 1) { st.idx++; st.answers = {}; st.revealed = false; }
+    } else {
+      st.answers[meId] = payload.move;
+      st.revealed = true;
+    }
+  } else if (game === 'rps') {
+    if (payload.action === 'next') {
+      st.choices = {}; st.revealed = false; st.round++;
+    } else {
+      st.choices[meId] = payload.move;
+      st.choices['partner'] = ['rock','paper','scissors','spock'][Math.floor(Math.random() * 4)];
+      st.revealed = true;
+    }
+  }
 }
