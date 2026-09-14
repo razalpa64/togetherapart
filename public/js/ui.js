@@ -226,17 +226,23 @@ export function confirmDialog(title, msg, { danger = false, confirmLabel = 'Conf
 
 export function showMenu(items, anchor) {
   document.querySelectorAll('.menu').forEach(m => m.remove());
-  const rect = anchor.getBoundingClientRect();
+  const rect = anchor && typeof anchor.getBoundingClientRect === 'function'
+    ? anchor.getBoundingClientRect()
+    : { right: window.innerWidth / 2 + 110, bottom: window.innerHeight / 3 };
   const m = h('div', { class: 'menu', role: 'menu' });
-  for (const it of items) {
+  for (const it of (items || [])) {
     if (it === '-') { m.append(h('div', { class: 'sep' })); continue; }
-    m.append(h('button', { role: 'menuitem', onclick: () => { m.remove(); it.onclick(); } }, it.icon ? h('span', { class: 'ic', html: icon(it.icon, 17) }) : '', it.label));
+    m.append(h('button', { role: 'menuitem', onclick: () => { m.remove(); if (it.onclick) it.onclick(); } }, it.icon ? h('span', { class: 'ic', html: icon(it.icon, 17) }) : '', it.label));
   }
   document.body.append(m);
-  const mw = 220, mh = m.offsetHeight;
-  m.style.left = Math.min(rect.right - mw, window.innerWidth - mw - 8) + 'px';
-  m.style.top = Math.min(rect.bottom + 6, window.innerHeight - mh - 8) + 'px';
-  const off = () => { m.remove(); document.removeEventListener('mousedown', off); };
+  const mw = 220, mh = m.offsetHeight || 120;
+  m.style.left = Math.max(10, Math.min(rect.right - mw, window.innerWidth - mw - 8)) + 'px';
+  m.style.top = Math.max(10, Math.min(rect.bottom + 6, window.innerHeight - mh - 8)) + 'px';
+  const off = (e) => {
+    if (m.contains(e?.target)) return;
+    m.remove();
+    document.removeEventListener('mousedown', off);
+  };
   setTimeout(() => document.addEventListener('mousedown', off), 10);
   return m;
 }

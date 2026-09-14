@@ -3,6 +3,7 @@ import { partner, store } from '../state.js';
 import { storage } from '../storage.js';
 import { h, icon, toast, modal } from '../ui.js';
 import { send } from '../ws.js';
+import { on } from '../bus.js';
 
 export const FLOWERS = [
   { id: 'rose', name: 'Rose', image: '/color/flowers/rose.png', meaning: 'Passion and true love', color: '#e53e3e' },
@@ -49,14 +50,28 @@ export function render(root, params) {
 
   const viewContainer = h('div', {});
 
-  // Handle direct share link parameter e.g. #/bouquet?b=...
+  // Bulletproof parameter parser for shared bouquet links
   if (params && params.get('b')) {
     try {
-      const decoded = JSON.parse(atob(decodeURIComponent(params.get('b'))));
-      if (decoded && decoded.counts) {
-        setTimeout(() => showReceivedModal(decoded), 200);
+      const raw = params.get('b');
+      let decodedStr = '';
+      try {
+        decodedStr = decodeURIComponent(raw);
+      } catch {
+        decodedStr = raw;
       }
-    } catch {}
+      let decoded = null;
+      try {
+        decoded = JSON.parse(decodedStr);
+      } catch {
+        decoded = JSON.parse(atob(raw));
+      }
+      if (decoded && decoded.counts) {
+        setTimeout(() => showReceivedModal(decoded), 250);
+      }
+    } catch (e) {
+      console.warn('Bouquet parameter parsing fallback:', e);
+    }
   }
 
   function showReceivedModal(bData) {
@@ -105,7 +120,8 @@ export function render(root, params) {
   }
 
   function getShareableLink(bData) {
-    const encoded = encodeURIComponent(btoa(JSON.stringify(bData)));
+    const jsonStr = JSON.stringify(bData);
+    const encoded = encodeURIComponent(jsonStr);
     return `${location.origin}${location.pathname}#/bouquet?b=${encoded}`;
   }
 
@@ -185,12 +201,11 @@ export function render(root, params) {
     // Bush Top
     canvas.append(h('img', { src: bush.top, style: { position: 'absolute', bottom: '80px', left: '50%', transform: 'translateX(-50%)', width: '290px', height: 'auto', zIndex: 10, pointerEvents: 'none' } }));
 
-    // Beautiful High-Definition Flower Holder / Wrapper
+    // High-Definition Flower Holder / Wrapper
     const wr = WRAPPERS.find(w => w.id === selectedWrapper) || WRAPPERS[0];
     let wrapperOverlay;
 
     if (wr.type === 'vase') {
-      // Glass Vase Design with translucency, highlights & ribbon tie
       wrapperOverlay = h('div', {
         style: {
           position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
@@ -207,7 +222,6 @@ export function render(root, params) {
         h('span', { class: 'serif', style: { fontSize: '0.9rem', fontStyle: 'italic', fontWeight: 'bold', zIndex: 2 } }, wr.label)
       );
     } else {
-      // Elegant Folding Paper Cone Wrap with Satin Ribbon Knot Accent
       wrapperOverlay = h('div', {
         style: {
           position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',

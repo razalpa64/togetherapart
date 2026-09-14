@@ -2,7 +2,7 @@
 import { api, uploadMedia, mediaUrl } from '../api.js';
 import { applyMedia } from '../ui.js';
 import { on } from '../bus.js';
-import { h, icon, toast, modal, field, emptyState, fmtCountdown, fmtDateLong } from '../ui.js';
+import { h, icon, toast, modal, field, emptyState, fmtCountdown, fmtDateLong, showMenu } from '../ui.js';
 
 export function render(root) {
   let places = [];
@@ -116,7 +116,7 @@ export function render(root) {
 
   const safeList = (s) => { try { const v = s || '[]'; return typeof v === 'string' ? JSON.parse(v) : Array.isArray(v) ? v : []; } catch { return []; } };
   function showMenuItems(items, anchor) {
-    import('../ui.js').then(m => m.showMenu(items, anchor));
+    showMenu(items, anchor);
   }
 
   offs.push(on('entity:places', () => load()));
