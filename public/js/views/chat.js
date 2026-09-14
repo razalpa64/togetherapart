@@ -212,7 +212,8 @@ export function render(root) {
   async function confirmDelete() {
     return new Promise((res) => {
       modal({ title: 'Delete this message?', body: h('p', { class: 'muted' }, 'It disappears for both of you. Replies keep their place.'),
-        actions: [{ label: 'Keep it', class: 'btn-ghost', onclick: () => res(false) }, { label: 'Delete', class: 'btn-danger', onclick: () => res(true) }] });
+        actions: [{ label: 'Keep it', class: 'btn-ghost', onclick: () => res(false) }, { label: 'Delete', class: 'btn-danger', onclick: () => res(true) }],
+        onClose: () => res(false) });
     });
   }
 

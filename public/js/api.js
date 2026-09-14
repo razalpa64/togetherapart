@@ -63,13 +63,20 @@ const DEMO_IMG = {
   'demo:stay-rain': 'stay-rain.jpg', 'demo:stay-balcony': 'stay-balcony.jpg', 'demo:stay-beach': 'stay-beach.jpg', 'demo:stay-cabin': 'stay-cabin.jpg',
   'demo:stay-rooftop': 'hero-room.jpg',
 };
-export const mediaUrl = (id) => String(id || '').startsWith('demo:')
-  ? '/img/' + (DEMO_IMG[String(id)] || 'hero-room.jpg')
-  : '/api/media/' + encodeURIComponent(id);
+export const mediaUrl = (id) => {
+  if (!id) return '';
+  const s = String(id);
+  if (s.startsWith('demo:')) return '/img/' + (DEMO_IMG[s] || 'hero-room.jpg');
+  if (s.startsWith('data:') || s.startsWith('blob:') || s.startsWith('http') || s.startsWith('/')) return s;
+  return '/api/media/' + encodeURIComponent(s);
+};
+
 export const resolveMedia = async (id) => {
   if (!id) return null;
-  if (String(id).startsWith('demo:')) return '/img/' + (DEMO_IMG[String(id)] || 'hero-room.jpg');
-  if (mediaResolver) return await mediaResolver(id);
-  return '/api/media/' + encodeURIComponent(id);
+  const s = String(id);
+  if (s.startsWith('demo:')) return '/img/' + (DEMO_IMG[s] || 'hero-room.jpg');
+  if (s.startsWith('data:') || s.startsWith('blob:') || s.startsWith('http') || s.startsWith('/')) return s;
+  if (mediaResolver) return await mediaResolver(s);
+  return '/api/media/' + encodeURIComponent(s);
 };
 export const img = (name) => '/img/' + name;
