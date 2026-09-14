@@ -341,11 +341,12 @@
 /* connection banner + demo bar */
 .banner { position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--ink); color: var(--paper-2); padding: 10px 20px; border-radius: 999px; font-size: 0.85rem; box-shadow: var(--shadow); display: flex; gap: 10px; align-items: center; }
 @media (min-width: 821px) { .banner { bottom: 24px; } }
-.demo-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 150; background: var(--gold); color: #241A0C; font-size: 0.8rem; font-weight: 600; padding: 6px 14px; display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap; text-align: center; }
-.demo-bar button { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
-body.has-demo-bar .shell, body.has-demo-bar .topbar { padding-top: 0; }
-body.has-demo-bar { padding-top: 30px; }
-body.has-demo-bar .rail { padding-top: 40px; }
+.demo-bar { position: fixed; top: 0; left: 0; right: 0; height: 34px; z-index: 150; background: var(--gold); color: #241A0C; font-size: 0.82rem; font-weight: 600; padding: 0 14px; display: flex; align-items: center; gap: 14px; justify-content: center; flex-wrap: wrap; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.demo-bar button { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; color: inherit; background: none; border: none; padding: 2px 6px; border-radius: 4px; }
+.demo-bar button:hover { background: rgba(0,0,0,0.08); }
+body.has-demo-bar { padding-top: 34px; }
+body.has-demo-bar .topbar { top: 34px; }
+body.has-demo-bar .rail { top: 34px; height: calc(100svh - 34px); padding-top: 18px; }
 
 /* rtc call panel */
 .call-panel { position: fixed; right: 18px; bottom: 96px; z-index: 96; width: min(320px, calc(100vw - 36px)); background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; animation: modalIn 0.25s var(--ease); }

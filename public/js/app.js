@@ -138,9 +138,24 @@ function railLink(n) {
   return h('a', { href: '#/' + n.id, dataset: { nav: n.id } }, h('span', { html: icon(n.icon, 19) }), h('span', {}, n.label));
 }
 
+export async function performSignOut() {
+  try { await api('POST', '/api/auth/logout'); } catch {}
+  clearToken();
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch {}
+  store.me = null;
+  store.room = null;
+  document.body.classList.remove('has-demo-bar');
+  const d = document.querySelector('.demo-bar');
+  if (d) d.remove();
+  location.href = location.origin + location.pathname + '#/auth';
+  location.reload();
+}
+
 function demoBar() {
   document.body.classList.add('has-demo-bar');
-  const exit = () => { clearToken(); location.hash = ''; location.reload(); };
   const swap = async () => {
     const d = await api('POST', '/api/demo/login', { side: amDemo() && store.me.user.name === 'Aisha' ? 'ravi' : 'aisha' });
     setToken(d.token); location.reload();
@@ -148,7 +163,7 @@ function demoBar() {
   return h('div', { class: 'demo-bar' },
     h('span', {}, '🌿 You\'re exploring the ', h('b', {}, 'demo world'), ' — sample data, not a real couple.'),
     h('button', { onclick: swap }, 'View as the other partner'),
-    h('button', { onclick: exit }, 'Exit demo'));
+    h('button', { onclick: performSignOut }, 'Exit demo world'));
 }
 
 /* ---------------- routing ---------------- */
@@ -350,7 +365,7 @@ function accountMenu(anchor) {
     ...(me.couple.members < 2 ? [{ icon: 'users', label: 'Invite your partner', onclick: () => showInvite() }] : []),
     { icon: me.couple.theme === 'evening' ? 'sun' : 'moon', label: me.couple.theme === 'evening' ? 'Morning light' : 'Evening light', onclick: async () => { await api('PATCH', '/api/couple', { theme: me.couple.theme === 'evening' ? 'morning' : 'evening' }); await refreshMe(); applyTheme(); } },
     '-',
-    { icon: 'logout', label: 'Sign out', onclick: async () => { await api('POST', '/api/auth/logout').catch(() => {}); clearToken(); location.hash = ''; location.reload(); } },
+    { icon: 'logout', label: 'Sign out', onclick: performSignOut },
   ], anchor);
 }
 
